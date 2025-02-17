@@ -7,5 +7,5 @@ add_subdirectory(external/glfw)
 
 
 add_executable(renderer src/main.cpp src/input_system.cpp)
-target_link_libraries(renderer Vulkan::Vulkan glfw)
+target_link_libraries(renderer Vulkan::Vulkan Vulkan::Headers glfw)
 target_include_directories(renderer PRIVATE include)
