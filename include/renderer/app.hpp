@@ -10,7 +10,7 @@ public:
 
 	virtual ~App() {}
 
-	virtual void set_exit_function(std::function<void()> exit_function) = 0;
+	virtual void set_exit_function(std::function<void()> function) = 0;
 	virtual void fixed_update(const FrameConstants & frame_constants) = 0;
 	virtual void render_update(const FrameConstants & frame_constants) = 0;
 	
