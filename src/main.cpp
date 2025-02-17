@@ -1,12 +1,17 @@
 #include <iostream>
 #include <renderer/app.hpp>
-
+#include <renderer/window/window_system_glfw.hpp>
 class Renderer: public App {
-
+private:
+    WindowSystemGLFW window_system;
+    std::function<void()> exit_function;
 
 public:
     Renderer() {
         std::cout << "Renderer created" << std::endl;
+
+        auto window = window_system.create_window(800, 600);
+        window_system.set_title(window.value(), "Renderer");
     }
 
     ~Renderer() {
