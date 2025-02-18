@@ -1,5 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
+#include <renderer/swapchain.hpp>
 
 class Renderer {
     private:
@@ -9,9 +10,9 @@ class Renderer {
     vk::Instance instance;
     vk::PhysicalDevice physical_device;
     vk::Device device;
-    
 
     vk::SurfaceKHR surface;
+    std::unique_ptr<Swapchain> swapchain;
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
@@ -111,10 +112,16 @@ class Renderer {
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
 
         setup_vulkan();
+
+        swapchain = std::make_unique<Swapchain>(physical_device, device, window_system->get(window), surface);
+        
         std::cout << "Renderer created" << std::endl;
     }
 
     ~Renderer() {
+        if (swapchain) {
+            swapchain.reset();
+        }
         cleanup_vulkan();
         std::cout << "Renderer destroyed" << std::endl;
     }
