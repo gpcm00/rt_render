@@ -4,8 +4,9 @@ project(vkpt VERSION 1.0)
 # Dependencies
 find_package(Vulkan REQUIRED)
 add_subdirectory(external/glfw)
+add_subdirectory(external/tinygltf)
 
 
 add_executable(renderer src/main.cpp src/input_system.cpp src/swapchain.cpp)
-target_link_libraries(renderer Vulkan::Vulkan Vulkan::Headers glfw)
+target_link_libraries(renderer Vulkan::Vulkan Vulkan::Headers glfw tinygltf)
 target_include_directories(renderer PRIVATE include)
