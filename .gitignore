@@ -45,3 +45,8 @@
 *.vsix
 
 build/
+
+*.spv
+misc/test/VulkanTest
+misc/test/stb/
+misc/test/tinyobjloader/
