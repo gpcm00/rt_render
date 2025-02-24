@@ -1,6 +1,6 @@
 #define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION  // Only if using textures
-#define STB_IMAGE_WRITE_IMPLEMENTATION  // Only if saving images
+#define STB_IMAGE_IMPLEMENTATION  
+#define STB_IMAGE_WRITE_IMPLEMENTATION  
 #include <iostream>
 #include <cstdlib>
 #include <vector>
@@ -18,8 +18,7 @@ void LoadGLTFModel(const std::string& filename) {
     tinygltf::Model model;
     std::string err, warn;
 
-    // Load .gltf (JSON) or .glb (binary)
-    bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename); // Use LoadBinaryFromFile() for .glb
+    bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename); 
 
     if (!warn.empty()) std::cout << "Warning: " << warn << std::endl;
     if (!ret) {
@@ -32,7 +31,6 @@ void LoadGLTFModel(const std::string& filename) {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
-    // Iterate through all meshes in the GLTF model
     for (const auto& mesh : model.meshes) {
         for (const auto& primitive : mesh.primitives) {
             const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.at("POSITION")];
@@ -45,7 +43,6 @@ void LoadGLTFModel(const std::string& filename) {
                 Vertex vertex;
                 vertex.position = glm::vec3(posData[i * 3], posData[i * 3 + 1], posData[i * 3 + 2]);
 
-                // Load normals (if present)
                 if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
                     const tinygltf::Accessor& normalAccessor = model.accessors[primitive.attributes.at("NORMAL")];
                     const tinygltf::BufferView& normalView = model.bufferViews[normalAccessor.bufferView];
@@ -60,7 +57,6 @@ void LoadGLTFModel(const std::string& filename) {
                 vertices.push_back(vertex);
             }
 
-            // Load indices (if present)
             if (primitive.indices >= 0) {
                 const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
                 const tinygltf::BufferView& indexView = model.bufferViews[indexAccessor.bufferView];
@@ -91,6 +87,6 @@ int main(int argc, char** argv) {
     std::string file_name(argv[1]);
 
     std::cout << "Loading: " << file_name << std::endl;
-    LoadGLTFModel(file_name);  // Replace with your GLTF file
+    LoadGLTFModel(file_name);
     return 0;
 }
