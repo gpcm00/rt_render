@@ -48,5 +48,7 @@ build/
 
 *.spv
 misc/test/VulkanTest
+misc/test/geometry
 misc/test/stb/
+misc/test/glTF-Sample-Assets/
 misc/test/tinyobjloader/
