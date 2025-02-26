@@ -10,7 +10,8 @@ VulkanTest: scene_sample.cpp
 	g++ $(CFLAGS) -o VulkanTest scene_sample.cpp $(LDFLAGS)
 
 Geometry: geometry.cpp
-	g++ $(CFLAGS) -o geometry geometry.cpp $(LDFLAGS)
+	g++ $(CFLAGS) -o geometry geometry.cpp $(LDFLAGS) -g
+	
 .PHONY: test clean
 
 test: VulkanTest
