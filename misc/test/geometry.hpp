@@ -20,7 +20,7 @@ struct Mesh {
 };
 
 struct Object {
-    const Mesh *mesh;
+    const Mesh* mesh;
     glm::mat4 transformation;
 };
 
