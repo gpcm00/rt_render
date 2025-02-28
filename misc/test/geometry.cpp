@@ -1,5 +1,4 @@
 #define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION  
 #define STB_IMAGE_WRITE_IMPLEMENTATION  
 #include <iostream>
 #include <cstdlib>
@@ -40,7 +39,7 @@ static glm::mat4 GetNodeTransform(const tinygltf::Node& node) {
     return transform;
 }
 
-static size_t populate_vertex_data(tinygltf::Model& model, const tinygltf::Primitive &primitive, std::vector<Vertex>& vertices) {
+static size_t populate_vertex_data(tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<Vertex>& vertices) {
     const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.at("POSITION")];
     const tinygltf::BufferView& posView = model.bufferViews[posAccessor.bufferView];
     const tinygltf::Buffer& posBuffer = model.buffers[posView.buffer];
@@ -103,7 +102,7 @@ static size_t populate_vertex_data(tinygltf::Model& model, const tinygltf::Primi
     return i;
 }
 
-static size_t populate_index_data(tinygltf::Model& model, const tinygltf::Primitive &primitive, std::vector<uint32_t> indices) {
+static size_t populate_index_data(tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<uint32_t>& indices) {
     size_t i = 0;
     if (primitive.indices >= 0) {
         const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
@@ -140,7 +139,6 @@ Scene::Scene(const std::string& filename)  {
     std::cout << "Successfully loaded GLTF: " << filename << std::endl;
     geometries.resize(model.meshes.size());
 
-    std::cout << "Number of meshes: " << model.meshes.size()  << std::endl;
     size_t mesh_i = 0;
     for (const auto& mesh : model.meshes) {
         size_t n_vertices = 0;
@@ -158,30 +156,36 @@ Scene::Scene(const std::string& filename)  {
         mesh_i++;
     }
 
+    std::cout << "Number of meshes: " << mesh_i << std::endl;
+
     objects.resize(model.nodes.size());
     size_t obj_i = 0;
     for (auto& node : model.nodes) {
         objects[obj_i].mesh = &geometries[node.mesh];
         objects[obj_i].transformation = GetNodeTransform(node);
+
+        obj_i++;
     }
+
+    std::cout << "Number of objects: " << obj_i << std::endl;
 }
 
-int main(int argc, char** argv) {
-    if (argc != 2) {
-        std::cout << "usage: " << argv[0] << " [path/to/model]\n";
-        exit(EXIT_FAILURE);
-    }
+// int main(int argc, char** argv) {
+//     if (argc != 2) {
+//         std::cout << "usage: " << argv[0] << " [path/to/model]\n";
+//         exit(EXIT_FAILURE);
+//     }
     
-    std::string file_name(argv[1]);
-    std::cout << "Loading: " << file_name << std::endl;
+//     std::string file_name(argv[1]);
+//     std::cout << "Loading: " << file_name << std::endl;
 
-    Scene test_meshes(file_name);
-    if (test_meshes.empty()) {
-        throw std::runtime_error("Unable to load test pointer list");
-    }
+//     Scene test_meshes(file_name);
+//     if (test_meshes.empty()) {
+//         throw std::runtime_error("Unable to load test pointer list");
+//     }
 
-    std::cout << test_meshes.size() << std::endl;
-    std::cout << test_meshes.empty() << std::endl;
+//     std::cout << test_meshes.size() << std::endl;
+//     std::cout << test_meshes.empty() << std::endl;
 
-    return 0;
-}
+//     return 0;
+// }

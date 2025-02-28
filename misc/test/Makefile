@@ -7,10 +7,10 @@ CFLAGS = -std=c++17 -O2 -I$(STB_INCLUDE_PATH) -I$(TINYOBJ_INCLUDE_PATH) -I$(TINY
 
 
 VulkanTest: scene_sample.cpp
-	g++ $(CFLAGS) -o VulkanTest scene_sample.cpp $(LDFLAGS)
+	g++ $(CFLAGS) -o VulkanTest scene_sample.cpp geometry.cpp $(LDFLAGS) -g
 
-Geometry: geometry.cpp
-	g++ $(CFLAGS) -o geometry geometry.cpp $(LDFLAGS) -g
+# Geometry: geometry.cpp
+# 	g++ $(CFLAGS) -o geometry geometry.cpp $(LDFLAGS) -g
 	
 .PHONY: test clean
 
