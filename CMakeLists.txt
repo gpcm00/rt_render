@@ -29,7 +29,7 @@ shaders/*.rcall
 
 foreach(shader ${shaders_sources})
     file(RELATIVE_PATH shader_rel ${CMAKE_CURRENT_SOURCE_DIR} ${shader})
-    set(shader_output ${CMAKE_BINARY_DIR}/shaders/${shader_rel}.spv)
+    set(shader_output ${CMAKE_BINARY_DIR}/${shader_rel}.spv)
     add_custom_command(
         OUTPUT ${shader_output}
         COMMAND glslc ${shader} -o ${shader_output}
