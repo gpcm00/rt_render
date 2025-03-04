@@ -8,6 +8,6 @@ add_subdirectory(external/glm)
 add_subdirectory(external/tinygltf)
 
 
-add_executable(renderer src/main.cpp src/input_system.cpp src/swapchain.cpp)
+add_executable(renderer src/main.cpp src/input_system.cpp src/swapchain.cpp src/geometry.cpp)
 target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf)
 target_include_directories(renderer PRIVATE include)

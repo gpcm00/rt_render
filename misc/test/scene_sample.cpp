@@ -36,8 +36,8 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string MODEL_PATH = "glTF-Sample-Assets/Models/Avocado/glTF/Avocado.gltf";
-const std::string TEXTURE_PATH = "glTF-Sample-Assets/Models/Avocado/glTF/Avocado_baseColor.png";
+const std::string MODEL_PATH = "glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf";
+const std::string TEXTURE_PATH = "glTF-Sample-Assets/Models/AntiqueCamera/glTF/camera_camera_BaseColor.png";
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -84,6 +84,16 @@ struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
+};
+
+struct MeshBuffer {
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    VkBuffer instanceBuffer;
+    VkDeviceMemory instanceBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
+    uint32_t indexBufferSize;
 };
 
 // struct Vertex {
@@ -134,6 +144,37 @@ namespace std {
     };
 }
 
+template <typename T, std::size_t N, std::size_t M>
+std::array<T, N + M> concat(const std::array<T, N>& a, const std::array<T, M>& b) {
+    std::array<T, N + M> result;
+    std::copy(a.begin(), a.end(), result.begin());
+    std::copy(b.begin(), b.end(), result.begin() + N);
+
+    return result;
+}
+
+static VkVertexInputBindingDescription getMat4BindingDescription() {
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 1;
+    bindingDescription.stride = sizeof(glm::mat4);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
+    return bindingDescription;
+}
+
+static std::array<VkVertexInputAttributeDescription, 4> getMat4AttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+
+    for (size_t i = 0; i < attributeDescriptions.size(); i++) {
+        attributeDescriptions[i].binding = 1;
+        attributeDescriptions[i].location = 4 + i;
+        attributeDescriptions[i].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[i].offset = sizeof(glm::vec4) * i;
+    }
+
+    return attributeDescriptions;
+}
+
 struct UniformBufferObject {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
@@ -142,6 +183,7 @@ struct UniformBufferObject {
 
 class HelloTriangleApplication {
 public:
+    HelloTriangleApplication() = default;
     void run() {
         initWindow();
         initVulkan();
@@ -150,6 +192,7 @@ public:
     }
 
 private:
+    
     GLFWwindow* window;
 
     VkInstance instance;
@@ -185,12 +228,14 @@ private:
     VkImageView textureImageView;
     VkSampler textureSampler;
 
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
+    // std::vector<Vertex> vertices;
+    // std::vector<uint32_t> indices;
+    // std::vector<VkBuffer> vertexBuffers;
+    // std::vector<VkDeviceMemory> vertexBufferssMemory;
+    // std::vector<VkBuffer> indexBuffers;
+    // std::vector<VkDeviceMemory> indexBuffersMemory;
+
+    std::vector<MeshBuffer> meshes;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -205,6 +250,8 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
+
+    Scene shapes;
 
     bool framebufferResized = false;
 
@@ -241,8 +288,9 @@ private:
         createTextureImageView();
         createTextureSampler();
         loadModel();
-        createVertexBuffer();
-        createIndexBuffer();
+        createMeshBuffer();
+        // createVertexBuffer();
+        // createIndexBuffer();
         createUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
@@ -297,11 +345,18 @@ private:
 
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
-        vkDestroyBuffer(device, indexBuffer, nullptr);
-        vkFreeMemory(device, indexBufferMemory, nullptr);
+        for (auto& mesh : meshes) {
+            vkDestroyBuffer(device, mesh.indexBuffer, nullptr);
+            vkFreeMemory(device, mesh.indexBufferMemory, nullptr);
 
-        vkDestroyBuffer(device, vertexBuffer, nullptr);
-        vkFreeMemory(device, vertexBufferMemory, nullptr);
+            vkDestroyBuffer(device, mesh.instanceBuffer, nullptr);
+            vkFreeMemory(device, mesh.instanceBufferMemory, nullptr);
+
+            vkDestroyBuffer(device, mesh.vertexBuffer, nullptr);
+            vkFreeMemory(device, mesh.vertexBufferMemory, nullptr);
+
+            mesh.indexBufferSize = 0;
+        }
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -642,12 +697,16 @@ private:
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-        auto bindingDescription = Vertex::getBindingDescription();
-        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+        std::array<VkVertexInputBindingDescription, 2> bindingDescriptions = { 
+            Vertex::getBindingDescription(), 
+            getMat4BindingDescription(),
+        };
 
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        auto attributeDescriptions = concat(Vertex::getAttributeDescriptions(), getMat4AttributeDescriptions());
+
+        vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
         vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
         vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -827,7 +886,7 @@ private:
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-            memcpy(data, pixels, static_cast<size_t>(imageSize));
+        memcpy(data, pixels, static_cast<size_t>(imageSize));
         vkUnmapMemory(device, stagingBufferMemory);
 
         stbi_image_free(pixels);
@@ -835,7 +894,7 @@ private:
         createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
 
         transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
         transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
@@ -1005,35 +1064,47 @@ private:
         //     throw std::runtime_error(warn + err);
         // }
 
-        Scene shapes(MODEL_PATH);
-        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+        shapes = Scene(MODEL_PATH);
+        // std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 
-        for (const auto& shape : shapes) {
-            for (const auto& index : shape.mesh->indices) {
-                Vertex vertex;
+        // for (const auto& shape : shapes) {
+        //     for (const auto& index : shape.mesh->indices) {
+        //         Vertex vertex;
                 
-                vertex.position = {
-                    shape.mesh->vertices[index].position
-                };
+        //         vertex.position = {
+        //             shape.mesh->vertices[index].position
+        //         };
 
-                vertex.texCoord = {
-                    shape.mesh->vertices[index].texCoord
-                };
+        //         vertex.texCoord = {
+        //             shape.mesh->vertices[index].texCoord
+        //         };
 
-                vertex.color = {1.0f, 1.0f, 1.0f};
+        //         vertex.color = {1.0f, 1.0f, 1.0f};
 
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(vertex);
-                }
+        //         if (uniqueVertices.count(vertex) == 0) {
+        //             uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+        //             vertices.push_back(vertex);
+        //         }
 
-                indices.push_back(uniqueVertices[vertex]);
-            }
+        //         indices.push_back(uniqueVertices[vertex]);
+        //     }
+        // }
+    }
+
+    void createMeshBuffer() {
+        meshes.resize(shapes.size());
+        size_t mesh_i = 0;
+        for (auto& shape : shapes) {
+            createVertexBuffer(meshes[mesh_i].vertexBuffer, meshes[mesh_i].vertexBufferMemory, shape.mesh);
+            createInstanceBuffer(meshes[mesh_i].instanceBuffer, meshes[mesh_i].instanceBufferMemory, &shape.transformation);
+            createIndexBuffer(meshes[mesh_i].indexBuffer, meshes[mesh_i].indexBufferMemory, shape.mesh);
+            meshes[mesh_i].indexBufferSize = static_cast<uint32_t>(shape.mesh->indices.size());
+            mesh_i++;
         }
     }
 
-    void createVertexBuffer() {
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    void createVertexBuffer(VkBuffer& vertexBuffer, VkDeviceMemory& vertexBufferMemory, const Mesh* mesh) {
+        VkDeviceSize bufferSize = sizeof(mesh->vertices[0]) * mesh->vertices.size();
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -1041,7 +1112,7 @@ private:
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            memcpy(data, vertices.data(), (size_t) bufferSize);
+        memcpy(data, mesh->vertices.data(), (size_t) bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
 
         std::cout << "Vertex buffer size: " << bufferSize << std::endl;
@@ -1054,8 +1125,8 @@ private:
         vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
-    void createIndexBuffer() {
-        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    void createInstanceBuffer(VkBuffer& instanceBuffer, VkDeviceMemory& instanceBufferMemory, const glm::mat4* transformation) {
+        VkDeviceSize bufferSize = sizeof(glm::mat4);
 
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
@@ -1063,7 +1134,27 @@ private:
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-            memcpy(data, indices.data(), (size_t) bufferSize);
+        memcpy(data, transformation, (size_t) bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, instanceBuffer, instanceBufferMemory);
+
+        copyBuffer(stagingBuffer, instanceBuffer, bufferSize);
+
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+    }
+
+    void createIndexBuffer(VkBuffer& indexBuffer, VkDeviceMemory& indexBufferMemory, const Mesh* mesh) {
+        VkDeviceSize bufferSize = sizeof(mesh->indices[0]) * mesh->indices.size();
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, mesh->indices.data(), (size_t) bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
         std::cout << "Index buffer size: " << bufferSize << std::endl;
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
@@ -1287,17 +1378,21 @@ private:
         scissor.offset = {0, 0};
         scissor.extent = swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        for (auto& mesh : meshes) {
+            VkBuffer vertexBuffers[] = {mesh.vertexBuffer, mesh.instanceBuffer};
+            // VkBuffer instanceBuffers[] = {mesh.instanceBuffer};
+            VkDeviceSize offsetsv[] = {0, 0};
+            // VkDeviceSize offsetsi[] = {0};
+            vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsetsv);
 
-        VkBuffer vertexBuffers[] = {vertexBuffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+            // vkCmdBindVertexBuffers(commandBuffer, 1, 1, instanceBuffers, offsetsi);
 
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
+            vkCmdDrawIndexed(commandBuffer, mesh.indexBufferSize, 2, 0, 0, 0);
+        }
         vkCmdEndRenderPass(commandBuffer);
 
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -1334,8 +1429,8 @@ private:
 
         UniformBufferObject ubo{};
         ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+        ubo.view = glm::lookAt(glm::vec3(18.0f, 18.0f, 18.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 70.0f);
         ubo.proj[1][1] *= -1;
 
         memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));

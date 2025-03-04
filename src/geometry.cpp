@@ -1,15 +1,13 @@
-#define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION  
 #include <iostream>
 #include <cstdlib>
 #include <tiny_gltf.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
-// #include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 
-#include "geometry.hpp"
+#include <geometry/geometry.hpp>
 
 static glm::mat4 get_node_transform(const tinygltf::Node& node) {
     glm::mat4 transform = glm::mat4(1.0f); // Identity matrix
