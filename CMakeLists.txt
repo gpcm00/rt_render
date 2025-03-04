@@ -11,3 +11,40 @@ add_subdirectory(external/tinygltf)
 add_executable(renderer src/main.cpp src/input_system.cpp src/swapchain.cpp src/geometry.cpp)
 target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf)
 target_include_directories(renderer PRIVATE include)
+
+file(GLOB shaders_sources 
+shaders/*.vert 
+shaders/*.frag 
+shaders/*.comp 
+shaders/*.geom 
+shaders/*.tesc 
+shaders/*.tese 
+shaders/*.rgen 
+shaders/*.rint
+shaders/*.rahit 
+shaders/*.rchit 
+shaders/*.rmiss 
+shaders/*.rcall 
+)
+
+foreach(shader ${shaders_sources})
+    file(RELATIVE_PATH shader_rel ${CMAKE_CURRENT_SOURCE_DIR} ${shader})
+    set(shader_output ${CMAKE_BINARY_DIR}/shaders/${shader_rel}.spv)
+    add_custom_command(
+        OUTPUT ${shader_output}
+        COMMAND glslc ${shader} -o ${shader_output}
+        DEPENDS ${shader}
+    )
+    list(APPEND shader_outputs ${shader_output})
+endforeach()
+
+add_custom_target(shaders ALL DEPENDS ${shader_outputs})
+add_dependencies(renderer shaders)
+
+# Copy shader outputs to the renderer build output folder
+add_custom_command(
+    TARGET renderer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:renderer>/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/shaders $<TARGET_FILE_DIR:renderer>/shaders
+)
+
