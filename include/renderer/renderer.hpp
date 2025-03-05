@@ -1,6 +1,25 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include <renderer/swapchain.hpp>
+#include <geometry/geometry.hpp>
+#include <unordered_map>
+
+struct MeshBuffer {
+    VkBuffer vertex_buffer;
+    VkDeviceMemory vertex_memory;
+
+    VkBuffer index_buffer;
+    VkDeviceMemory index_memory;
+    
+    uint32_t size;
+};
+
+
+struct InstanceBuffer {
+    MeshBuffer* mesh_buffer;
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+};
 
 class Renderer {
     private:
@@ -13,6 +32,11 @@ class Renderer {
 
     vk::SurfaceKHR surface;
     std::unique_ptr<Swapchain> swapchain;
+
+    std::unordered_map<const Mesh*,MeshBuffer> meshes{};
+    std::vector<InstanceBuffer> objects{};
+
+    Scene scene;
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
@@ -107,6 +131,11 @@ class Renderer {
         instance.destroy();
     }  
 
+    void create_buffer(VkBuffer& buffer, VkDeviceMemory& memory, VkDeviceSize size, VkBufferUsageFlags usage, 
+        VkMemoryPropertyFlags properties, VkSharingMode mode = VK_SHARING_MODE_EXCLUSIVE);
+
+    void create_mesh_buffer(const Mesh* mesh);
+
     public:
 
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
@@ -126,6 +155,6 @@ class Renderer {
         std::cout << "Renderer destroyed" << std::endl;
     }
 
-
-
+    
+    void load_scene(std::string file_path);
 };

@@ -83,9 +83,9 @@ static size_t populate_vertex_data(tinygltf::Model& model, const tinygltf::Primi
         }
 
         if (textureData != nullptr) {
-            vertex.texCoord = glm::vec2(textureData[i * 2], textureData[i * 2 + 1]);
+            vertex.uvmap = glm::vec2(textureData[i * 2], textureData[i * 2 + 1]);
         } else {
-            vertex.texCoord = glm::vec2(0.0f);
+            vertex.uvmap = glm::vec2(0.0f);
         }
 
         if (colorData != nullptr) {
