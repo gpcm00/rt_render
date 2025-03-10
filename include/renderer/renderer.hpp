@@ -1,6 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include <renderer/swapchain.hpp>
+#include <renderer/command_pool.hpp>
 #include <geometry/geometry.hpp>
 #include <unordered_map>
 
@@ -94,15 +95,15 @@ class Renderer {
 
         for (size_t i = 0; i < queue_family_properties.size(); ++i) {
             if (queue_family_properties[i].queueFlags & vk::QueueFlagBits::eGraphics) {
-            graphics_queue_family_index = static_cast<int>(i);
+                graphics_queue_family_index = static_cast<int>(i);
             }
 
             if (physical_device.getSurfaceSupportKHR(i, surface)) {
-            present_queue_family_index = static_cast<int>(i);
+                present_queue_family_index = static_cast<int>(i);
             }
 
             if (graphics_queue_family_index != -1 && present_queue_family_index != -1) {
-            break;
+                break;
             }
         }
 
@@ -132,10 +133,13 @@ class Renderer {
     }  
 
     void create_buffer(VkBuffer& buffer, VkDeviceMemory& memory, VkDeviceSize size, VkBufferUsageFlags usage, 
-        VkMemoryPropertyFlags properties, VkSharingMode mode = VK_SHARING_MODE_EXCLUSIVE);
-
+                                VkMemoryPropertyFlags properties, VkSharingMode mode = VK_SHARING_MODE_EXCLUSIVE);
+    
     void create_mesh_buffer(const Mesh* mesh);
-
+    
+    void create_device_buffer(VkBuffer& buffer, VkDeviceMemory& memory, const void* vertices, VkDeviceSize size, VkBufferUsageFlagBits usage);
+    // void create_vertex_buffer(VkBuffer& vertexBuffer, VkDeviceMemory& vertexBufferMemory, std::vector<Vertex>& vertex);
+    // void Renderer::create_index_buffer(VkBuffer& buffer, VkDeviceMemory& memory, std::vector<uint32_t>& vertices);
     public:
 
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
