@@ -98,6 +98,6 @@ class Pipeline {
         pipeline_info.pGroups = groups.data();
         pipeline_info.maxPipelineRayRecursionDepth = ray_depth;
         // pipeline_info.layout = TODO
-        vkCreateRayTracingPipelinesKHR(*device, nullptr, nullptr, 1, &pipeline_info, nullptr, &rt_pipeline)
+        vkCreateRayTracingPipelinesKHR(*device, nullptr, nullptr, 1, &pipeline_info, nullptr, &rt_pipeline);
     }
 };
