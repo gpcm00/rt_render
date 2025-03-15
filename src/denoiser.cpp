@@ -16,6 +16,8 @@ RealTimeDenoiser::RealTimeDenoiser() {
     options.logCallbackFunction = nullptr;
     options.logCallbackLevel = 4;  // Default log level
 
+    optixInit();
+
     if (optixDeviceContextCreate(0, &options, &context) != OPTIX_SUCCESS)
     {
         std::cerr << "Failed to create OptiX context." << std::endl;

@@ -1,7 +1,7 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
 #include <renderer/swapchain.hpp>
-
+#include <renderer/denoiser.hpp>
 class Renderer {
     private:
     WindowHandle window;
@@ -13,6 +13,8 @@ class Renderer {
 
     vk::SurfaceKHR surface;
     std::unique_ptr<Swapchain> swapchain;
+
+    RealTimeDenoiser denoiser;
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
