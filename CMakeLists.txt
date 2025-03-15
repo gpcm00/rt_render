@@ -7,10 +7,24 @@ add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
 add_subdirectory(external/tinygltf)
 
+# CUDA and Optix
+find_package(CUDA REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+include(cmake/FindOptiX90.cmake)
+# set(OptiX_INSTALL_DIR "C:/ProgramData/NVIDIA Corporation/OptiX SDK 9.0.0/SDK")
 
-add_executable(renderer src/main.cpp src/input_system.cpp src/swapchain.cpp src/geometry.cpp)
-target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf)
-target_include_directories(renderer PRIVATE include)
+# Refer to https://github.com/NVIDIA/OptiX_Apps
+if(OptiX90_FOUND)
+  set(OPTIX_INCLUDE_DIR "${OPTIX90_INCLUDE_DIR}")
+  message(STATUS "Found OptiX SDK 9.0.0 at ${OPTIX90_PATH}")
+else()
+  message(FATAL_ERROR "No OptiX SDK 7/8/9 found.")
+endif()
+# find_package(OptiX REQUIRED)
+
+add_executable(renderer src/main.cpp src/input_system.cpp src/swapchain.cpp src/geometry.cpp src/denoiser.cpp)
+target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf CUDA::cudart CUDA::cuda_driver)
+target_include_directories(renderer PRIVATE include ${OPTIX_INCLUDE_DIR})
 
 file(GLOB shaders_sources 
 shaders/*.vert 
