@@ -4,7 +4,7 @@
 #include <optix_function_table.h>
 #include <iostream>
 
-RealTimeDenoiser::RealTimeDenoiser() {
+RealTimeDenoiser::RealTimeDenoiser(unsigned int width, unsigned int height) {
     // Initialize OptiX context and denoiser
     std::cout << "Initializing OptiX denoiser..." << std::endl;
 
@@ -42,12 +42,31 @@ RealTimeDenoiser::RealTimeDenoiser() {
 
     std::cout << "OptiX denoiser created successfully." << std::endl;
 
+    std::cout << "Setting up OptiX denoiser..." << std::endl;
+    // Set up the denoiser
+    OptixDenoiserSizes denoiser_sizes;
+    optixDenoiserComputeMemoryResources(denoiser, width, height, &denoiser_sizes);
+
+    cudaMalloc(&denoiser_state, denoiser_sizes.stateSizeInBytes);
+    cudaMalloc(&denoiser_scratch, denoiser_sizes.withoutOverlapScratchSizeInBytes);
+
+    optixDenoiserSetup(denoiser, nullptr, 
+        width, 
+        height, 
+        reinterpret_cast<CUdeviceptr>(denoiser_state), 
+        denoiser_sizes.stateSizeInBytes, 
+        reinterpret_cast<CUdeviceptr>(denoiser_scratch), 
+        denoiser_sizes.withoutOverlapScratchSizeInBytes
+    );
+
 }
 
 RealTimeDenoiser::~RealTimeDenoiser()
 {
     // Clean up OptiX resources
     std::cout << "Cleaning up OptiX resources..." << std::endl;
+    cudaFree(denoiser_scratch);
+    cudaFree(denoiser_state);
     optixDenoiserDestroy(denoiser);
     optixDeviceContextDestroy(context);
     std::cout << "OptiX resources cleaned up successfully." << std::endl;

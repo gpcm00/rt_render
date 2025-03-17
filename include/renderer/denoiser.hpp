@@ -8,9 +8,11 @@ class RealTimeDenoiser
 private:
 OptixDeviceContext context;
 OptixDenoiser denoiser;
+void* denoiser_state;
+void* denoiser_scratch;
 
 public:
-    RealTimeDenoiser();
+    RealTimeDenoiser(unsigned int width, unsigned int height);
     ~RealTimeDenoiser();
 
     void denoise(const float* color, const float* albedo, const float* normal, const float* output, int width, int height);

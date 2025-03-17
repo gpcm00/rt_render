@@ -111,7 +111,7 @@ class Renderer {
 
     public:
 
-    Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
+    Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system), denoiser(640, 480) {
 
         setup_vulkan();
 
