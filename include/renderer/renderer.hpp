@@ -2,6 +2,7 @@
 #include <vulkan/vulkan.hpp>
 #include <renderer/swapchain.hpp>
 #include <renderer/command_pool.hpp>
+#include <renderer/pipeline.hpp>
 #include <geometry/geometry.hpp>
 #include <unordered_map>
 
@@ -36,6 +37,9 @@ class Renderer {
 
     std::unordered_map<const Mesh*,MeshBuffer> meshes{};
     std::vector<InstanceBuffer> objects{};
+
+    Command_Pool command;
+    Pipeline pipeline;
 
     Scene scene;
 
