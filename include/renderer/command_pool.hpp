@@ -57,12 +57,12 @@ class Command_Pool {
         return command_buffer;
     }
 
-    std::vector<VkCommandBuffer> alloc_command_buffers(VkCommandBufferLevel level, uint32_t count) {
+    std::vector<VkCommandBuffer> alloc_command_buffers(VkCommandBufferLevel level, uint32_t count, VkCommandBufferLevel level) {
         std::vector<VkCommandBuffer> buffers(count);
 
         VkCommandBufferAllocateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        info.level = level;
         info.commandPool = pool;
         info.commandBufferCount = count;
 
@@ -86,7 +86,10 @@ class Command_Pool {
         vkQueueWaitIdle(queue);
     }
 
-    void submit_command(std::vector<VkCommandBuffer> command_buffers) {
+    void submit_commands(std::vector<VkCommandBuffer> command_buffers) {
+        // needs to change to use fences instead of wait idle so the progrma does no block
+        // TODO: add fence logic
+        
         VkSubmitInfo info{};
         info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         info.commandBufferCount = command_buffers.size();
@@ -96,7 +99,7 @@ class Command_Pool {
             throw std::runtime_error("Failed to submit command buffer");
         }
         
-        vkQueueWaitIdle(queue);
+        // vkQueueWaitIdle(queue);
     }
 
     void free_command_buffer(VkCommandBuffer command_buffer) {

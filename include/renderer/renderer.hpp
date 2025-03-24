@@ -1,10 +1,24 @@
 #pragma once
 #include <vulkan/vulkan.hpp>
+
 #include <renderer/swapchain.hpp>
 #include <renderer/command_pool.hpp>
 #include <renderer/pipeline.hpp>
+#include <renderer/window/window_system_glfw.hpp>
+
 #include <geometry/geometry.hpp>
+
 #include <unordered_map>
+#include <memory>
+
+std::string rengen_module_path = "";
+std::string miss_module_path = "";
+std::string clhit_module_path = "";
+
+struct ShaderBindingTable {
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+};
 
 struct MeshBuffer {
     VkBuffer vertex_buffer;
@@ -19,6 +33,21 @@ struct MeshBuffer {
 
 struct InstanceBuffer {
     MeshBuffer* mesh_buffer;
+    glm::mat4 transformation;
+};
+
+struct AccelerationBuffer {
+    VkAccelerationStructureKHR as;
+
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    VkDeviceAddress as_addr;
+};
+
+struct TopAccelerationBuffer {
+    AccelerationBuffer as;
+
+    // needs a separated buffer for instances
     VkBuffer buffer;
     VkDeviceMemory memory;
 };
@@ -35,13 +64,22 @@ class Renderer {
     vk::SurfaceKHR surface;
     std::unique_ptr<Swapchain> swapchain;
 
-    std::unordered_map<const Mesh*,MeshBuffer> meshes{};
+    std::unordered_map<const Mesh*, MeshBuffer> meshes{};
     std::vector<InstanceBuffer> objects{};
 
-    Command_Pool command;
+    Command_Pool pool;
     Pipeline pipeline;
 
     Scene scene;
+
+    ShaderBindingTable rgen_sbt;
+    ShaderBindingTable miss_sbt;
+    ShaderBindingTable hit_sbt;
+
+    // std::vector<ShaderBindingTable> SBTs;
+
+    std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
+    TopAccelerationBuffer tlas;
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
@@ -128,7 +166,24 @@ class Renderer {
         vk::DeviceCreateInfo device_create_info({}, queue_create_infos.size(), queue_create_infos.data(), 0, nullptr, device_extensions.size(), device_extensions.data(), &device_features);
 
         device = physical_device.createDevice(device_create_info);
+
+        pool = Command_Pool((const VkDevice*)&device, (VkPhysicalDevice)physical_device, VK_QUEUE_GRAPHICS_BIT);
     }
+
+    void create_pipeline() {
+        pipeline = Pipeline((VkDevice*)&device);
+        pipeline.add_binding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+        pipeline.add_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        pipeline.add_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        pipeline.create_set();
+
+        pipeline.push_module(rengen_module_path, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+        pipeline.push_module(miss_module_path, VK_SHADER_STAGE_MISS_BIT_KHR);
+        pipeline.push_module(clhit_module_path, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+        pipeline.create_rt_pipeline(3);
+    }
+
+    
 
     void cleanup_vulkan() {
         device.destroy();
@@ -140,10 +195,20 @@ class Renderer {
                                 VkMemoryPropertyFlags properties, VkSharingMode mode = VK_SHARING_MODE_EXCLUSIVE);
     
     void create_mesh_buffer(const Mesh* mesh);
+
+    VkDeviceAddress get_device_address(VkBuffer buffer) {
+        VkBufferDeviceAddressInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        info.buffer = buffer;
+        return vkGetBufferDeviceAddress((VkDevice)device, &info);
+    }
     
-    void create_device_buffer(VkBuffer& buffer, VkDeviceMemory& memory, const void* vertices, VkDeviceSize size, VkBufferUsageFlagBits usage);
-    // void create_vertex_buffer(VkBuffer& vertexBuffer, VkDeviceMemory& vertexBufferMemory, std::vector<Vertex>& vertex);
-    // void Renderer::create_index_buffer(VkBuffer& buffer, VkDeviceMemory& memory, std::vector<uint32_t>& vertices);
+    void create_device_buffer(VkBuffer& buffer, VkDeviceMemory& memory, const void* vertices, VkDeviceSize size, VkBufferUsageFlags usage);
+
+    void create_BLAS(const MeshBuffer* mesh);
+
+    void create_TLAS();
+
     public:
 
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
@@ -165,4 +230,6 @@ class Renderer {
 
     
     void load_scene(std::string file_path);
+
+    void create_sbt();
 };

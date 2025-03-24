@@ -1,6 +1,8 @@
 #include <pipeline.hpp>
 #include <fstream>
 
+#define ALIGNED(v,a) ((v+a-1)&~(a-1))
+
 static VkRayTracingShaderGroupCreateInfoKHR populate_group(VkShaderStageFlagBits stage_flag, uint32_t index) {
     VkRayTracingShaderGroupCreateInfoKHR group{};
     group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
@@ -59,10 +61,34 @@ VkShaderModule Pipeline::load_module(std::string file_name) {
 
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(*device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
+        throw std::runtime_error("Failed to create shader module: " + file_name);
     }
 
     return shaderModule;
+}
+
+void Pipeline::count_shader_module(VkShaderStageFlagBits stage_flag) {
+    switch (stage_flag)
+    {
+    case VK_SHADER_STAGE_MISS_BIT_KHR:
+        miss_count++;
+        break;
+    
+    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+        chit_count++;
+        break;
+    
+    case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+        intr_count++;
+        break;
+
+    case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+        ahit_count++;
+        break;
+    
+    default:
+        break;
+    }
 }
 
 void Pipeline::push_module(std::string file_path, VkShaderStageFlagBits flag) {
@@ -99,9 +125,10 @@ void Pipeline::create_set() {
     bindings.clear();
 }
 
-VkPipeline Pipeline::create_rt_pipeline(uint32_t ray_depth) {
+void Pipeline::create_rt_pipeline(uint32_t ray_depth) {
         
     std::vector<VkPipelineShaderStageCreateInfo> stages{};
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups{};
 
     nstage = 0;
     for (auto& module : modules) {
@@ -114,6 +141,8 @@ VkPipeline Pipeline::create_rt_pipeline(uint32_t ray_depth) {
 
         VkRayTracingShaderGroupCreateInfoKHR group = populate_group(module.stage_flag, nstage);
         groups.push_back(group);
+
+        count_shader_module(module.stage_flag);
 
         nstage++;
     }
@@ -143,4 +172,9 @@ VkPipeline Pipeline::create_rt_pipeline(uint32_t ray_depth) {
     if (vkCreateRayTracingPipelinesKHR(*device, nullptr, nullptr, 1, &pipeline_info, nullptr, &rt_pipeline) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create pipeline");
     }
+
+    for (auto& module : modules) {
+        vkDestroyShaderModule(*device, module.module, nullptr);
+    }
+
 }
