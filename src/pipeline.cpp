@@ -1,7 +1,20 @@
 #include <pipeline.hpp>
 #include <fstream>
 
-#define ALIGNED(v,a) ((v+a-1)&~(a-1))
+static VkWriteDescriptorSet populate_write_descriptor(VkBuffer buffer, VkDeviceSize size, VkDescriptorSet set, VkDescriptorType type, uint32_t binding) {
+    VkDescriptorBufferInfo bi{};
+    bi.buffer = buffer;
+    bi.range = size;
+    
+    VkWriteDescriptorSet wds{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    wds.dstSet = set;
+    wds.descriptorCount = 1;
+    wds.dstBinding = binding;
+    wds.pBufferInfo = &bi;
+    wds.descriptorType = type;
+
+    return wds;
+}
 
 static VkRayTracingShaderGroupCreateInfoKHR populate_group(VkShaderStageFlagBits stage_flag, uint32_t index) {
     VkRayTracingShaderGroupCreateInfoKHR group{};

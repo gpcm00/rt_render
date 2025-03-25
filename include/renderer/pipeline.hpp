@@ -27,6 +27,7 @@ class Pipeline {
     VkPipelineLayout layout;
     VkPipeline rt_pipeline;
     std::vector<VkDescriptorSetLayoutBinding> bindings;
+
     std::vector<PipelineModules> modules;
 
     uint32_t miss_count;
@@ -59,11 +60,17 @@ class Pipeline {
     void add_binding(VkDescriptorType type, VkShaderStageFlags flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR, uint32_t count = 1);
     void create_set();
 
+    
+
     uint32_t shader_count() {
         return nstage;
     }
 
     VkPipeline pipeline_data() {
         return rt_pipeline;
+    }
+
+    VkDescriptorSetLayout* get_set() {
+        return sets.data();
     }
 };

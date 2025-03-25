@@ -10,6 +10,21 @@ static VkTransformMatrixKHR from_mat4(glm::mat4& mat) {
     return ret;
 }
 
+static VkWriteDescriptorSet populate_write_descriptor(VkBuffer buffer, VkDeviceSize size, VkDescriptorSet set, VkDescriptorType type, uint32_t binding) {
+    VkDescriptorBufferInfo bi{};
+    bi.buffer = buffer;
+    bi.range = size;
+    
+    VkWriteDescriptorSet wds{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    wds.dstSet = set;
+    wds.descriptorCount = 1;
+    wds.dstBinding = binding;
+    wds.pBufferInfo = &bi;
+    wds.descriptorType = type;
+
+    return wds;
+}
+
 static void submit_copy_command(Command_Pool& pool, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
     VkCommandBuffer copy_command = pool.single_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
@@ -27,6 +42,56 @@ static void submit_copy_command(Command_Pool& pool, VkBuffer src, VkBuffer dst, 
 
     pool.submit_command(copy_command);
     pool.free_command_buffer(copy_command);
+}
+
+void Renderer::create_descriptor_sets() {
+    std::vector<VkDescriptorPoolSize> pool_sizes {
+        {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1},
+        // {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+    };
+
+    VkDescriptorPool pool;
+
+    VkDescriptorPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
+    pool_info.pPoolSizes = pool_sizes.data();
+    pool_info.maxSets = 1;
+    vkCreateDescriptorPool((VkDevice)device, &pool_info, nullptr, &pool);
+
+    VkDescriptorSet descriptor_set;
+    VkDescriptorSetAllocateInfo alloc_info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    alloc_info.descriptorPool = pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = pipeline.get_set();
+
+    VkWriteDescriptorSetAccelerationStructureKHR dsas_info{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR};
+    dsas_info.accelerationStructureCount = 1;
+    dsas_info.pAccelerationStructures = &tlas.as.as;
+
+    VkWriteDescriptorSet accel_wds{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET}; 
+    accel_wds.descriptorCount = 1;
+    accel_wds.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    accel_wds.dstBinding = 0;
+    accel_wds.dstSet = descriptor_set;
+    accel_wds.pNext = &dsas_info;
+
+    // VkWriteDescriptorSet image_wds = populate_write_descriptor()
+    VkWriteDescriptorSet camera_wds = populate_write_descriptor(camera.buffer, sizeof(camera.matrices), descriptor_set, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+
+    std::vector<VkWriteDescriptorSet> wds = {
+        accel_wds,
+        camera_wds,
+    };
+
+    vkUpdateDescriptorSets((VkDevice)device, static_cast<uint32_t>(wds.size()), wds.data(), 0, VK_NULL_HANDLE);
+}
+
+void Renderer::create_ubo() {
+    create_buffer(camera.map.buffer, camera.map.memory, sizeof(Camera), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    vkMapMemory((VkDevice)device, camera.map.memory, 0, sizeof(Camera), 0, &camera.map.data);
 }
 
 void Renderer::create_device_buffer(VkBuffer& buffer, VkDeviceMemory& memory, const void* host_buffer, 

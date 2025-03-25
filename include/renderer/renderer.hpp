@@ -20,6 +20,28 @@ struct ShaderBindingTable {
     VkDeviceMemory memory;
 };
 
+struct StagingBuffer {
+    void* data;
+    
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+};
+
+struct Camera {
+    glm::mat4 view;
+    glm::mat4 projection;
+};
+
+struct UnifromBuffer {
+    Camera matrices;
+
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+
+    StagingBuffer map;
+
+};
+
 struct MeshBuffer {
     VkBuffer vertex_buffer;
     VkDeviceMemory vertex_memory;
@@ -71,6 +93,8 @@ class Renderer {
     Pipeline pipeline;
 
     Scene scene;
+
+    UnifromBuffer camera;
 
     ShaderBindingTable rgen_sbt;
     ShaderBindingTable miss_sbt;
@@ -168,22 +192,25 @@ class Renderer {
         device = physical_device.createDevice(device_create_info);
 
         pool = Command_Pool((const VkDevice*)&device, (VkPhysicalDevice)physical_device, VK_QUEUE_GRAPHICS_BIT);
+        create_pipeline();
     }
+
+    void create_descriptor_sets();
 
     void create_pipeline() {
         pipeline = Pipeline((VkDevice*)&device);
         pipeline.add_binding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
-        pipeline.add_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        // pipeline.add_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         pipeline.add_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         pipeline.create_set();
+
+        create_descriptor_sets();
 
         pipeline.push_module(rengen_module_path, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
         pipeline.push_module(miss_module_path, VK_SHADER_STAGE_MISS_BIT_KHR);
         pipeline.push_module(clhit_module_path, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
         pipeline.create_rt_pipeline(3);
     }
-
-    
 
     void cleanup_vulkan() {
         device.destroy();
@@ -203,6 +230,8 @@ class Renderer {
         return vkGetBufferDeviceAddress((VkDevice)device, &info);
     }
     
+    void create_ubo();
+
     void create_device_buffer(VkBuffer& buffer, VkDeviceMemory& memory, const void* vertices, VkDeviceSize size, VkBufferUsageFlags usage);
 
     void create_BLAS(const MeshBuffer* mesh);
