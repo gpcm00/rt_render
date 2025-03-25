@@ -8,6 +8,8 @@
 
 #include <renderer/renderer.hpp>
 
+// #define VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 class PathTracer: public App {
 private:
     WindowSystemGLFW window_system;

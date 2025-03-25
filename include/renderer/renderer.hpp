@@ -1,5 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+#include <renderer/vulkan.hpp>
 
 #include <renderer/swapchain.hpp>
 #include <renderer/command_pool.hpp>
@@ -11,20 +11,20 @@
 #include <unordered_map>
 #include <memory>
 
-std::string rengen_module_path = "";
-std::string miss_module_path = "";
-std::string clhit_module_path = "";
+// std::string rengen_module_path = "";
+// std::string miss_module_path = "";
+// std::string clhit_module_path = "";
 
 struct ShaderBindingTable {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
 };
 
 struct StagingBuffer {
     void* data;
     
-    VkBuffer buffer;
-    VkDeviceMemory memory;
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
 };
 
 struct Camera {
@@ -35,23 +35,21 @@ struct Camera {
 struct UnifromBuffer {
     Camera matrices;
 
-    VkBuffer buffer;
-    VkDeviceMemory memory;
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
 
     StagingBuffer map;
-
 };
 
 struct MeshBuffer {
-    VkBuffer vertex_buffer;
-    VkDeviceMemory vertex_memory;
+    vk::Buffer vertex_buffer;
+    vk::DeviceMemory vertex_memory;
 
-    VkBuffer index_buffer;
-    VkDeviceMemory index_memory;
+    vk::Buffer index_buffer;
+    vk::DeviceMemory index_memory;
     
     uint32_t size;
 };
-
 
 struct InstanceBuffer {
     MeshBuffer* mesh_buffer;
@@ -59,19 +57,19 @@ struct InstanceBuffer {
 };
 
 struct AccelerationBuffer {
-    VkAccelerationStructureKHR as;
+    vk::AccelerationStructureKHR as;
 
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-    VkDeviceAddress as_addr;
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
+    vk::DeviceAddress as_addr;
 };
 
 struct TopAccelerationBuffer {
     AccelerationBuffer as;
 
     // needs a separated buffer for instances
-    VkBuffer buffer;
-    VkDeviceMemory memory;
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
 };
 
 class Renderer {
@@ -79,6 +77,7 @@ class Renderer {
     WindowHandle window;
     WindowSystemGLFW * window_system;
 
+    vk::detail::DispatchLoaderDynamic dl;
     vk::Instance instance;
     vk::PhysicalDevice physical_device;
     vk::Device device;
@@ -107,6 +106,8 @@ class Renderer {
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
+        // VULKAN_HPP_DEFAULT_DISPATCHER.init();
+
         vk::ApplicationInfo app_info("Vulkan Path Tracer", VK_MAKE_VERSION(1, 0, 0), nullptr, VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_3);
 
         const std::vector<const char*> validation_layers = {
@@ -119,10 +120,13 @@ class Renderer {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
+        
         vk::InstanceCreateInfo create_info({}, &app_info, validation_layers.size(), validation_layers.data(), extensions.size(), extensions.data());
 
         try {
             instance = vk::createInstance(create_info);
+            dl = vk::detail::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr, device);
+
         } catch (const std::runtime_error& e) {
             throw std::runtime_error("Failed to create Vulkan instance");
         }
@@ -191,24 +195,30 @@ class Renderer {
 
         device = physical_device.createDevice(device_create_info);
 
-        pool = Command_Pool((const VkDevice*)&device, (VkPhysicalDevice)physical_device, VK_QUEUE_GRAPHICS_BIT);
+        pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
+        // pool = Command_Pool((const vk::Device*)&device, (vk::PhysicalDevice)physical_device, vk::QueueFlagBits::eGraphics);
         create_pipeline();
     }
 
     void create_descriptor_sets();
 
     void create_pipeline() {
-        pipeline = Pipeline((VkDevice*)&device);
-        pipeline.add_binding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+        // pipeline = Pipeline((VkDevice*)&device);
+        pipeline = Pipeline((vk::Device*)&device, dl);
+        pipeline.add_binding(vk::DescriptorType::eAccelerationStructureKHR);
         // pipeline.add_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-        pipeline.add_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        pipeline.add_binding(vk::DescriptorType::eUniformBuffer);
         pipeline.create_set();
 
         create_descriptor_sets();
 
-        pipeline.push_module(rengen_module_path, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
-        pipeline.push_module(miss_module_path, VK_SHADER_STAGE_MISS_BIT_KHR);
-        pipeline.push_module(clhit_module_path, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+        std::string rengen_module_path = "";
+        std::string miss_module_path = "";
+        std::string clhit_module_path = "";
+
+        pipeline.push_module(rengen_module_path, vk::ShaderStageFlagBits::eRaygenKHR);
+        pipeline.push_module(miss_module_path, vk::ShaderStageFlagBits::eMissKHR);
+        pipeline.push_module(clhit_module_path, vk::ShaderStageFlagBits::eClosestHitKHR);
         pipeline.create_rt_pipeline(3);
     }
 
@@ -218,21 +228,20 @@ class Renderer {
         instance.destroy();
     }  
 
-    void create_buffer(VkBuffer& buffer, VkDeviceMemory& memory, VkDeviceSize size, VkBufferUsageFlags usage, 
-                                VkMemoryPropertyFlags properties, VkSharingMode mode = VK_SHARING_MODE_EXCLUSIVE);
+    void create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::DeviceSize size, vk::BufferUsageFlags usage, 
+                                vk::MemoryPropertyFlags properties, vk::SharingMode mode = vk::SharingMode::eExclusive);
     
     void create_mesh_buffer(const Mesh* mesh);
 
-    VkDeviceAddress get_device_address(VkBuffer buffer) {
-        VkBufferDeviceAddressInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    vk::DeviceAddress get_device_address(vk::Buffer buffer) {
+        vk::BufferDeviceAddressInfo info{};
         info.buffer = buffer;
-        return vkGetBufferDeviceAddress((VkDevice)device, &info);
+        return device.getBufferAddress(&info);
     }
     
     void create_ubo();
 
-    void create_device_buffer(VkBuffer& buffer, VkDeviceMemory& memory, const void* vertices, VkDeviceSize size, VkBufferUsageFlags usage);
+    void create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* vertices, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
     void create_BLAS(const MeshBuffer* mesh);
 

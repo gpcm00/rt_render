@@ -1,22 +1,22 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+#include <renderer/vulkan.hpp>
 
 #include <vector>
 #include <iostream>
 
 class Command_Pool {
-    const VkDevice* device;
-    VkCommandPool pool;
-    VkQueue queue;
+    vk::Device* device;
+    vk::CommandPool pool;
+    vk::Queue queue;
 
     public:
     Command_Pool() = default;
-    Command_Pool(const VkDevice* dev, VkPhysicalDevice physical_device, VkQueueFlagBits flag) : device(dev) {
+    Command_Pool(vk::Device* dev, vk::PhysicalDevice* physical_device, vk::QueueFlagBits flag) : device(dev) {
         uint32_t count = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, nullptr);
+        physical_device->getQueueFamilyProperties(&count, nullptr);
 
-        std::vector<VkQueueFamilyProperties> queue_families(count);
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, queue_families.data());
+        std::vector<vk::QueueFamilyProperties> queue_families(count);
+        physical_device->getQueueFamilyProperties(&count, queue_families.data());
 
         uint32_t queue_index = 0;
         for (const auto& queue_family : queue_families) {
@@ -26,87 +26,67 @@ class Command_Pool {
             queue_index++;
         }
 
-        VkCommandPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        vk::CommandPoolCreateInfo poolInfo{};
+        poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
         poolInfo.queueFamilyIndex = queue_index;
 
-        if (vkCreateCommandPool(*device, &poolInfo, nullptr, &pool) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics command pool!");
-        }
+        pool = device->createCommandPool(poolInfo);
 
-        vkGetDeviceQueue(*device, queue_index, 0, &queue);
+        queue = device->getQueue(queue_index, 0);
     }
 
     ~Command_Pool() {
-        vkDestroyCommandPool(*device, pool, nullptr);
+        device->destroyCommandPool(pool);
     }
 
-    VkCommandBuffer single_command_buffer(VkCommandBufferLevel level) {
-        VkCommandBufferAllocateInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    vk::CommandBuffer single_command_buffer(vk::CommandBufferLevel level) {
+        vk::CommandBufferAllocateInfo info{};
+        info.level = vk::CommandBufferLevel::ePrimary;
         info.commandPool = pool;
         info.commandBufferCount = 1;
 
-        VkCommandBuffer command_buffer;
-        if (vkAllocateCommandBuffers(*device, &info, &command_buffer) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to allocate single command buffer");
-        }
+        vk::CommandBuffer command_buffer;
+        command_buffer = device->allocateCommandBuffers(info).front();
 
         return command_buffer;
     }
 
-    std::vector<VkCommandBuffer> alloc_command_buffers(VkCommandBufferLevel level, uint32_t count, VkCommandBufferLevel level) {
-        std::vector<VkCommandBuffer> buffers(count);
-
-        VkCommandBufferAllocateInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    std::vector<vk::CommandBuffer> alloc_command_buffers(vk::CommandBufferLevel level, uint32_t count) {
+        vk::CommandBufferAllocateInfo info{};
         info.level = level;
         info.commandPool = pool;
         info.commandBufferCount = count;
 
-        if (vkAllocateCommandBuffers(*device, &info, buffers.data()) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to allocate command buffers");
-        }
-
-        return buffers;
+        return device->allocateCommandBuffers(info);
     }
 
-    void submit_command(VkCommandBuffer command_buffer) {
-        VkSubmitInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    void submit_command(vk::CommandBuffer command_buffer) {
+        vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &command_buffer;
 
-        if (vkQueueSubmit(queue, 1, &info, VK_NULL_HANDLE) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to submit command buffer");
-        }
-
-        vkQueueWaitIdle(queue);
+        queue.submit(info, nullptr);
+        queue.waitIdle();
     }
 
-    void submit_commands(std::vector<VkCommandBuffer> command_buffers) {
-        // needs to change to use fences instead of wait idle so the progrma does no block
+    void submit_commands(std::vector<vk::CommandBuffer> command_buffers) {
+        // needs to change to use fences instead of wait idle so the program does not block
         // TODO: add fence logic
         
-        VkSubmitInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        vk::SubmitInfo info{};
         info.commandBufferCount = command_buffers.size();
         info.pCommandBuffers = command_buffers.data();
 
-        if (vkQueueSubmit(queue, 1, &info, VK_NULL_HANDLE) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to submit command buffer");
-        }
+        queue.submit(info, nullptr);
         
-        // vkQueueWaitIdle(queue);
+        // queue.waitIdle();
     }
 
-    void free_command_buffer(VkCommandBuffer command_buffer) {
-        vkFreeCommandBuffers(*device, pool, 1, &command_buffer);
+    void free_command_buffer(vk::CommandBuffer command_buffer) {
+        device->freeCommandBuffers(pool, command_buffer);
     }
 
-    void free_command_buffer(std::vector<VkCommandBuffer>& command_buffers) {
-        vkFreeCommandBuffers(*device, pool, command_buffers.size(), command_buffers.data());
+    void free_command_buffer(std::vector<vk::CommandBuffer>& command_buffers) {
+        device->freeCommandBuffers(pool, command_buffers);
     }
 };

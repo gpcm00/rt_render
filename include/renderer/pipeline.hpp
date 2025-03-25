@@ -1,6 +1,6 @@
 #pragma once
 #include <iostream>
-#include <vulkan/vulkan.hpp>
+#include <renderer/vulkan.hpp>
 #include <vector>
 #include <cassert>
 #include <glm/glm.hpp>
@@ -15,18 +15,19 @@ struct RayConstants {
 
 struct PipelineModules {
     std::string file_path;
-    VkShaderModule module;
-    VkShaderStageFlagBits stage_flag;
+    vk::ShaderModule module;
+    vk::ShaderStageFlagBits stage_flag;
 };
 
 class Pipeline {
-    VkDevice* device;
+    vk::Device* device;
+    vk::detail::DispatchLoaderDynamic dl;
 
     size_t nstage;
-    std::vector<VkDescriptorSetLayout> sets;
-    VkPipelineLayout layout;
-    VkPipeline rt_pipeline;
-    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    std::vector<vk::DescriptorSetLayout> sets;
+    vk::PipelineLayout layout;
+    vk::Pipeline rt_pipeline;
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
 
     std::vector<PipelineModules> modules;
 
@@ -35,12 +36,13 @@ class Pipeline {
     uint32_t intr_count;
     uint32_t ahit_count;
 
-    VkShaderModule load_module(std::string file_name);
-    void count_shader_module(VkShaderStageFlagBits stage_flag);
+    vk::ShaderModule load_module(std::string file_name);
+    void count_shader_module(vk::ShaderStageFlagBits stage_flag);
 
     public:
     Pipeline() = default;
-    Pipeline(VkDevice* dev ) : device(dev) {
+
+    Pipeline(vk::Device* dev, vk::detail::DispatchLoaderDynamic & dl) : device(dev), dl(dl) {
         miss_count = 0;
         chit_count = 0;
         intr_count = 0;
@@ -48,29 +50,27 @@ class Pipeline {
 
     ~Pipeline() {
         for (auto& set : sets) {
-            vkDestroyDescriptorSetLayout(*device, set, nullptr);
+            device->destroyDescriptorSetLayout(set);
         }
 
-        vkDestroyPipeline(*device, rt_pipeline, nullptr);
-        vkDestroyPipelineLayout(*device, layout, nullptr);
+        device->destroyPipeline(rt_pipeline);
+        device->destroyPipelineLayout(layout);
     }
     
     void create_rt_pipeline(uint32_t ray_depth);
-    void push_module(std::string file_name, VkShaderStageFlagBits stage_flag);
-    void add_binding(VkDescriptorType type, VkShaderStageFlags flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR, uint32_t count = 1);
+    void push_module(std::string file_name, vk::ShaderStageFlagBits stage_flag);
+    void add_binding(vk::DescriptorType type, vk::ShaderStageFlags flags = vk::ShaderStageFlagBits::eRaygenKHR, uint32_t count = 1);
     void create_set();
-
-    
 
     uint32_t shader_count() {
         return nstage;
     }
 
-    VkPipeline pipeline_data() {
+    vk::Pipeline pipeline_data() {
         return rt_pipeline;
     }
 
-    VkDescriptorSetLayout* get_set() {
+    vk::DescriptorSetLayout* get_set() {
         return sets.data();
     }
 };

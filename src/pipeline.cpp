@@ -1,12 +1,12 @@
-#include <pipeline.hpp>
+#include <renderer/pipeline.hpp>
 #include <fstream>
 
-static VkWriteDescriptorSet populate_write_descriptor(VkBuffer buffer, VkDeviceSize size, VkDescriptorSet set, VkDescriptorType type, uint32_t binding) {
-    VkDescriptorBufferInfo bi{};
+static vk::WriteDescriptorSet populate_write_descriptor(vk::Buffer buffer, vk::DeviceSize size, vk::DescriptorSet set, vk::DescriptorType type, uint32_t binding) {
+    vk::DescriptorBufferInfo bi{};
     bi.buffer = buffer;
     bi.range = size;
     
-    VkWriteDescriptorSet wds{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    vk::WriteDescriptorSet wds{};
     wds.dstSet = set;
     wds.descriptorCount = 1;
     wds.dstBinding = binding;
@@ -16,30 +16,29 @@ static VkWriteDescriptorSet populate_write_descriptor(VkBuffer buffer, VkDeviceS
     return wds;
 }
 
-static VkRayTracingShaderGroupCreateInfoKHR populate_group(VkShaderStageFlagBits stage_flag, uint32_t index) {
-    VkRayTracingShaderGroupCreateInfoKHR group{};
-    group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-    group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+static vk::RayTracingShaderGroupCreateInfoKHR populate_group(vk::ShaderStageFlagBits stage_flag, uint32_t index) {
+    vk::RayTracingShaderGroupCreateInfoKHR group{};
+    group.type = vk::RayTracingShaderGroupTypeKHR::eGeneral;
     group.generalShader = VK_SHADER_UNUSED_KHR; 
     group.closestHitShader = VK_SHADER_UNUSED_KHR;
     group.anyHitShader = VK_SHADER_UNUSED_KHR;
     group.intersectionShader = VK_SHADER_UNUSED_KHR;
 
     switch (stage_flag) {
-        case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-        case VK_SHADER_STAGE_MISS_BIT_KHR:
+        case vk::ShaderStageFlagBits::eRaygenKHR:
+        case vk::ShaderStageFlagBits::eMissKHR:
             group.generalShader = index;
             break;
 
-        case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+        case vk::ShaderStageFlagBits::eClosestHitKHR:
             group.closestHitShader = index;
             break;
 
-        case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+        case vk::ShaderStageFlagBits::eIntersectionKHR:
             group.intersectionShader = index;
             break;
 
-        case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+        case vk::ShaderStageFlagBits::eAnyHitKHR:
             group.anyHitShader = index;
         
         default:
@@ -49,7 +48,7 @@ static VkRayTracingShaderGroupCreateInfoKHR populate_group(VkShaderStageFlagBits
     return group;
 }
 
-VkShaderModule Pipeline::load_module(std::string file_name) {
+vk::ShaderModule Pipeline::load_module(std::string file_name) {
     std::ifstream file(file_name, std::ios::ate | std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open " + file_name);
@@ -67,35 +66,34 @@ VkShaderModule Pipeline::load_module(std::string file_name) {
 
     file.close();
 
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    vk::ShaderModuleCreateInfo createInfo{};
     createInfo.codeSize = buffer.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer.data());
 
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(*device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    vk::ShaderModule shaderModule;
+    if (device->createShaderModule(&createInfo, nullptr, &shaderModule) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create shader module: " + file_name);
     }
 
     return shaderModule;
 }
 
-void Pipeline::count_shader_module(VkShaderStageFlagBits stage_flag) {
+void Pipeline::count_shader_module(vk::ShaderStageFlagBits stage_flag) {
     switch (stage_flag)
     {
-    case VK_SHADER_STAGE_MISS_BIT_KHR:
+    case vk::ShaderStageFlagBits::eMissKHR:
         miss_count++;
         break;
     
-    case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+    case vk::ShaderStageFlagBits::eClosestHitKHR:
         chit_count++;
         break;
     
-    case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+    case vk::ShaderStageFlagBits::eIntersectionKHR:
         intr_count++;
         break;
 
-    case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+    case vk::ShaderStageFlagBits::eAnyHitKHR:
         ahit_count++;
         break;
     
@@ -104,7 +102,7 @@ void Pipeline::count_shader_module(VkShaderStageFlagBits stage_flag) {
     }
 }
 
-void Pipeline::push_module(std::string file_path, VkShaderStageFlagBits flag) {
+void Pipeline::push_module(std::string file_path, vk::ShaderStageFlagBits flag) {
     PipelineModules module = {
         .file_path = file_path,
         .module = load_module(file_path),
@@ -114,8 +112,8 @@ void Pipeline::push_module(std::string file_path, VkShaderStageFlagBits flag) {
     modules.push_back(module);
 }
 
-void Pipeline::add_binding(VkDescriptorType type, VkShaderStageFlags flags, uint32_t count) {
-    VkDescriptorSetLayoutBinding binding{};
+void Pipeline::add_binding(vk::DescriptorType type, vk::ShaderStageFlags flags, uint32_t count) {
+    vk::DescriptorSetLayoutBinding binding{};
     binding.binding = bindings.size();
     binding.descriptorType = type;
     binding.stageFlags = flags;
@@ -124,13 +122,12 @@ void Pipeline::add_binding(VkDescriptorType type, VkShaderStageFlags flags, uint
 }
 
 void Pipeline::create_set() {
-    VkDescriptorSetLayoutCreateInfo info{};
-    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    vk::DescriptorSetLayoutCreateInfo info{};
     info.bindingCount = static_cast<uint32_t>(bindings.size());
     info.pBindings = bindings.data();
 
-    VkDescriptorSetLayout set;
-    if (vkCreateDescriptorSetLayout(*device, &info, nullptr, &set) != VK_SUCCESS) {
+    vk::DescriptorSetLayout set;
+    if (device->createDescriptorSetLayout(&info, nullptr, &set) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create ray tracing descriptor set layout!");
     }
 
@@ -140,19 +137,19 @@ void Pipeline::create_set() {
 
 void Pipeline::create_rt_pipeline(uint32_t ray_depth) {
         
-    std::vector<VkPipelineShaderStageCreateInfo> stages{};
-    std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups{};
+    std::vector<vk::PipelineShaderStageCreateInfo> stages{};
+    std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups{};
 
     nstage = 0;
     for (auto& module : modules) {
-        VkPipelineShaderStageCreateInfo stage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+        vk::PipelineShaderStageCreateInfo stage{};
         stage.pName = "main";  
         stage.module = module.module;
         stage.stage = module.stage_flag;
 
         stages.push_back(stage);
 
-        VkRayTracingShaderGroupCreateInfoKHR group = populate_group(module.stage_flag, nstage);
+        vk::RayTracingShaderGroupCreateInfoKHR group = populate_group(module.stage_flag, nstage);
         groups.push_back(group);
 
         count_shader_module(module.stage_flag);
@@ -160,34 +157,38 @@ void Pipeline::create_rt_pipeline(uint32_t ray_depth) {
         nstage++;
     }
 
-    VkPipelineLayoutCreateInfo layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    VkPushConstantRange constants = {
-        .stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
-        .offset = 0, 
-        .size = sizeof(RayConstants),
-    };
+    vk::PipelineLayoutCreateInfo layout_info{};
+    vk::PushConstantRange constants;
+    constants.stageFlags = vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eMissKHR;
+    constants.offset = 0;
+    constants.size = sizeof(RayConstants);
+
 
     layout_info.pushConstantRangeCount = 1;
     layout_info.pPushConstantRanges = &constants;
     layout_info.setLayoutCount = sets.size();
     layout_info.pSetLayouts = sets.data();
-    if (vkCreatePipelineLayout(*device, &layout_info, nullptr, &layout) != VK_SUCCESS) {
+    if (device->createPipelineLayout(&layout_info, nullptr, &layout) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create pipeline layout");
     }
 
-    VkRayTracingPipelineCreateInfoKHR pipeline_info{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
+    vk::RayTracingPipelineCreateInfoKHR pipeline_info{};
     pipeline_info.stageCount = nstage;
     pipeline_info.pStages = stages.data();
     pipeline_info.groupCount = static_cast<uint32_t>(groups.size());
     pipeline_info.pGroups = groups.data();
     pipeline_info.maxPipelineRayRecursionDepth = ray_depth;
     pipeline_info.layout = layout;
-    if (vkCreateRayTracingPipelinesKHR(*device, nullptr, nullptr, 1, &pipeline_info, nullptr, &rt_pipeline) != VK_SUCCESS) {
+
+    auto ret = device->createRayTracingPipelineKHR(nullptr, nullptr, pipeline_info, nullptr, dl);
+    if (ret.result != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create pipeline");
     }
 
+    rt_pipeline = ret.value;
+
     for (auto& module : modules) {
-        vkDestroyShaderModule(*device, module.module, nullptr);
+        device->destroyShaderModule(module.module);
     }
 
 }
