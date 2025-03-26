@@ -7,6 +7,7 @@ find_package(Vulkan REQUIRED)
 add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
 add_subdirectory(external/tinygltf)
+add_subdirectory(external/stb)
 
 
 add_executable(renderer 
