@@ -40,7 +40,7 @@ foreach(shader ${shaders_sources})
     set(shader_output ${CMAKE_BINARY_DIR}/${shader_rel}.spv)
     add_custom_command(
         OUTPUT ${shader_output}
-        COMMAND glslangValidator -V ${shader} -o ${shader_output}
+        COMMAND glslangValidator --target-env vulkan1.3 -V ${shader} -o ${shader_output}
         DEPENDS ${shader}
     )
     list(APPEND shader_outputs ${shader_output})

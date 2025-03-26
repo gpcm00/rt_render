@@ -147,7 +147,7 @@ class Renderer {
         // Create surface
         auto glfw_window = window_system->get(window);
         glfwCreateWindowSurface(instance, glfw_window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
-
+           
 
         // Create device with basic features, swapchain, and ray tracing enabled
         const std::vector<const char*> device_extensions = {
@@ -191,7 +191,10 @@ class Renderer {
         vk::PhysicalDeviceFeatures device_features = {};
         device_features.samplerAnisotropy = VK_TRUE;
 
-        vk::DeviceCreateInfo device_create_info({}, queue_create_infos.size(), queue_create_infos.data(), 0, nullptr, device_extensions.size(), device_extensions.data(), &device_features);
+        vk::PhysicalDeviceRayTracingPipelineFeaturesKHR physical_device_ray_tracing_pipeline_features{};
+        physical_device_ray_tracing_pipeline_features.rayTracingPipeline = true;
+
+        vk::DeviceCreateInfo device_create_info({}, queue_create_infos.size(), queue_create_infos.data(), 0, nullptr, device_extensions.size(), device_extensions.data(), &device_features, &physical_device_ray_tracing_pipeline_features);
 
         device = physical_device.createDevice(device_create_info);
 
