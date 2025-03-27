@@ -83,7 +83,7 @@ void Renderer::create_descriptor_sets() {
         camera_wds,
     };
 
-    device.updateDescriptorSets(wds, nullptr);
+    // device.updateDescriptorSets(wds, nullptr);
 }
 
 void Renderer::create_ubo() {

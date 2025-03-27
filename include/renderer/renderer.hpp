@@ -7,6 +7,8 @@
 #include <renderer/window/window_system_glfw.hpp>
 
 #include <geometry/geometry.hpp>
+#include <renderer/frame_constants.hpp>
+#include <renderer/frame_data.hpp>
 
 #include <unordered_map>
 #include <memory>
@@ -82,6 +84,9 @@ class Renderer {
     vk::PhysicalDevice physical_device;
     vk::Device device;
 
+    int graphics_queue_family_index;
+    int present_queue_family_index;
+
     vk::SurfaceKHR surface;
     std::unique_ptr<Swapchain> swapchain;
 
@@ -103,6 +108,9 @@ class Renderer {
 
     std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
     TopAccelerationBuffer tlas;
+
+    std::shared_ptr<CommonFrameData> common_data;
+    std::vector<std::unique_ptr<FrameData>> frame_data;
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
@@ -160,8 +168,8 @@ class Renderer {
         vk::DeviceQueueCreateInfo queue_create_info({}, 0, 1, &queue_priority);
 
         auto queue_family_properties = physical_device.getQueueFamilyProperties();
-        int graphics_queue_family_index = -1;
-        int present_queue_family_index = -1;
+        graphics_queue_family_index = -1;
+        present_queue_family_index = -1;
 
         for (size_t i = 0; i < queue_family_properties.size(); ++i) {
             if (queue_family_properties[i].queueFlags & vk::QueueFlagBits::eGraphics) {
@@ -200,7 +208,7 @@ class Renderer {
 
         pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
         // pool = Command_Pool((const vk::Device*)&device, (vk::PhysicalDevice)physical_device, vk::QueueFlagBits::eGraphics);
-        create_pipeline();
+        // create_pipeline();
     }
 
     void create_descriptor_sets();
@@ -215,9 +223,9 @@ class Renderer {
 
         create_descriptor_sets();
 
-        std::string rengen_module_path = "";
-        std::string miss_module_path = "";
-        std::string clhit_module_path = "";
+        std::string rengen_module_path = "shaders/shader.rgen.spv";
+        std::string miss_module_path = "shaders/shader.rmiss.spv";
+        std::string clhit_module_path = "shaders/shader.rchit.spv";
 
         pipeline.push_module(rengen_module_path, vk::ShaderStageFlagBits::eRaygenKHR);
         pipeline.push_module(miss_module_path, vk::ShaderStageFlagBits::eMissKHR);
@@ -254,14 +262,19 @@ class Renderer {
 
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
 
+        graphics_queue_family_index = -1;
+        present_queue_family_index = -1;
         setup_vulkan();
 
         swapchain = std::make_unique<Swapchain>(physical_device, device, window_system->get(window), surface);
         
+        frame_setup();
+
         std::cout << "Renderer created" << std::endl;
     }
 
     ~Renderer() {
+        frame_cleanup();
         if (swapchain) {
             swapchain.reset();
         }
@@ -273,4 +286,31 @@ class Renderer {
     void load_scene(std::string file_path);
 
     void create_sbt();
+
+    // Set up common and frame-specific data
+    void frame_setup() {
+
+        common_data = std::make_shared<CommonFrameData>(device, swapchain->get_num_images(), graphics_queue_family_index);
+
+        // frame_data.resize(swapchain->get_num_images());
+        for (int i = 0; i < swapchain->get_num_images(); i++) {
+            frame_data.emplace_back(std::make_unique<FrameData>(common_data, i));
+        }
+    }
+
+    void frame_cleanup() {
+
+        frame_data.clear();
+        common_data.reset();
+    }
+
+    void render(const FrameConstants & frame_constants) {
+
+        // set up work for the current frame
+
+        
+
+        // submit to queue
+
+    }
 };

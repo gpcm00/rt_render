@@ -45,6 +45,8 @@ public:
     }
 
     void render_update(const FrameConstants & frame_constants) override {
+
+        renderer->render(frame_constants);
     }
 };
 
