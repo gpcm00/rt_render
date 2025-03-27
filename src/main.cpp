@@ -6,6 +6,7 @@
 #include <renderer/input/mouse_glfw.hpp>
 #include <memory>
 
+#define VMA_IMPLEMENTATION
 #include <renderer/renderer.hpp>
 
 // #define VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -22,7 +23,9 @@ public:
     PathTracer(): input_system(&window_system, new KeyboardGLFW(&window_system), new MouseGLFW(&window_system)) {
         std::cout << "PathTracer created" << std::endl;
 
-        auto window = window_system.create_window(800, 600);
+        // Hard code the dimensions for now
+        const auto [width, height] = renderer->get_dimensions();
+        auto window = window_system.create_window(width, height);
         window_system.set_title(window.value(), "Vulkan Path Tracer");
 
         renderer = std::make_unique<Renderer>(window.value(), &window_system);

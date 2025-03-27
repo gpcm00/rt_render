@@ -8,7 +8,7 @@ add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
 add_subdirectory(external/tinygltf)
 # include_directories(external/stb)
-
+add_subdirectory(external/VulkanMemoryAllocator)
 
 add_executable(renderer 
 src/main.cpp 
@@ -18,7 +18,7 @@ src/swapchain.cpp
 src/geometry.cpp
 src/pipeline.cpp
 )
-target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf)
+target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf GPUOpen::VulkanMemoryAllocator)
 target_include_directories(renderer PRIVATE include)
 
 file(GLOB shaders_sources 

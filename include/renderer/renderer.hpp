@@ -76,6 +76,16 @@ struct TopAccelerationBuffer {
 
 class Renderer {
     private:
+    // hard code the dimensions for now
+    static constexpr int r_width = 800;
+    static constexpr int r_height = 600;
+    public:
+
+    std::pair<int, int> get_dimensions() {
+        return {r_width, r_height};
+    }
+
+    private:
     WindowHandle window;
     WindowSystemGLFW * window_system;
 
@@ -109,9 +119,12 @@ class Renderer {
     std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
     TopAccelerationBuffer tlas;
 
+    VmaAllocator allocator;
     std::shared_ptr<CommonFrameData> common_data;
     std::vector<std::unique_ptr<FrameData>> frame_data;
     int current_frame;
+    
+
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
@@ -210,6 +223,14 @@ class Renderer {
         pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
         // pool = Command_Pool((const vk::Device*)&device, (vk::PhysicalDevice)physical_device, vk::QueueFlagBits::eGraphics);
         // create_pipeline();
+
+        // Create VmaAllocator
+
+        VmaAllocatorCreateInfo allocator_info = {};
+        allocator_info.physicalDevice = physical_device;
+        allocator_info.device = device;
+        allocator_info.instance = instance;
+        vmaCreateAllocator(&allocator_info, &allocator);
     }
 
     void create_descriptor_sets();
@@ -235,6 +256,7 @@ class Renderer {
     }
 
     void cleanup_vulkan() {
+        vmaDestroyAllocator(allocator);
         device.destroy();
         instance.destroySurfaceKHR(surface);
         instance.destroy();
@@ -291,7 +313,7 @@ class Renderer {
     // Set up common and frame-specific data
     void frame_setup() {
 
-        common_data = std::make_shared<CommonFrameData>(device, swapchain->get_num_images(), graphics_queue_family_index);
+        common_data = std::make_shared<CommonFrameData>(device, allocator, swapchain->get_num_images(), graphics_queue_family_index);
         current_frame = 0;
         // frame_data.resize(swapchain->get_num_images());
         for (int i = 0; i < swapchain->get_num_images(); i++) {

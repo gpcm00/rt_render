@@ -7,6 +7,8 @@ class CommonFrameData {
 private:
 
 vk::Device & device;
+VmaAllocator & allocator;
+
 size_t num_frames;
 
 vk::CommandPool command_pool;
@@ -15,14 +17,15 @@ friend class FrameData;
 
 public:
 
-    CommonFrameData(vk::Device & device, size_t num_frames, int graphics_queue_family_index): 
-    device(device), num_frames(num_frames) {
+    CommonFrameData(vk::Device & device, VmaAllocator & allocator, size_t num_frames, int graphics_queue_family_index): 
+    device(device), allocator(allocator), num_frames(num_frames) {
 
         vk::CommandPoolCreateInfo pool_info{};
         pool_info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
         pool_info.queueFamilyIndex = graphics_queue_family_index; // assumes graphics and present queue family are the same
 
         command_pool = device.createCommandPool(pool_info);
+
     }
 
     ~CommonFrameData() {
@@ -45,6 +48,8 @@ public:
 
 vk::CommandBuffer command_buffer;
 vk::Fence fence;
+
+vk::Image rt_image;
 
 
 FrameData(std::shared_ptr<CommonFrameData> common_data, int frame_index): 
