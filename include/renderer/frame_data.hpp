@@ -41,9 +41,11 @@ std::shared_ptr<CommonFrameData> common_data;
 vk::Device & device;
 int frame_index;
 
-vk::CommandBuffer command_buffer;
-
 public:
+
+vk::CommandBuffer command_buffer;
+vk::Fence fence;
+
 
 FrameData(std::shared_ptr<CommonFrameData> common_data, int frame_index): 
 device(common_data->device), frame_index(frame_index) {
@@ -54,10 +56,15 @@ device(common_data->device), frame_index(frame_index) {
     info.commandBufferCount = 1;
 
     command_buffer = device.allocateCommandBuffers(info).front();
+
+    vk::FenceCreateInfo fence_info;
+    fence_info.flags = vk::FenceCreateFlagBits::eSignaled; // so that the first wait on empty work doesn't fail
+    fence = device.createFence(fence_info);
 }
 
 ~FrameData() {
 
+    device.destroyFence(fence);
     device.freeCommandBuffers(common_data->command_pool, command_buffer);
 }
 

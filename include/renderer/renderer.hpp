@@ -111,6 +111,7 @@ class Renderer {
 
     std::shared_ptr<CommonFrameData> common_data;
     std::vector<std::unique_ptr<FrameData>> frame_data;
+    int current_frame;
 
     void setup_vulkan() {
         // Create Vulkan 1.3 instance  with validation layers
@@ -291,7 +292,7 @@ class Renderer {
     void frame_setup() {
 
         common_data = std::make_shared<CommonFrameData>(device, swapchain->get_num_images(), graphics_queue_family_index);
-
+        current_frame = 0;
         // frame_data.resize(swapchain->get_num_images());
         for (int i = 0; i < swapchain->get_num_images(); i++) {
             frame_data.emplace_back(std::make_unique<FrameData>(common_data, i));
@@ -300,6 +301,10 @@ class Renderer {
 
     void frame_cleanup() {
 
+        for (auto& frame : frame_data) {
+            device.waitForFences(1, &frame->fence, VK_TRUE, UINT64_MAX);
+        }
+
         frame_data.clear();
         common_data.reset();
     }
@@ -307,10 +312,29 @@ class Renderer {
     void render(const FrameConstants & frame_constants) {
 
         // set up work for the current frame
+        // std::cout << "Waiting for command buffer" << std::endl;
 
+        auto & cmd_buffer = frame_data[current_frame]->command_buffer;
+        device.waitForFences(1, &frame_data[current_frame]->fence, VK_TRUE, UINT64_MAX);
+        device.resetFences(1, &frame_data[current_frame]->fence);
+
+        vk::CommandBufferBeginInfo begin_info{};
+        begin_info.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+        cmd_buffer.begin(begin_info);
+        cmd_buffer.end();
+
+        // std::cout << "Recorded command buffer" << std::endl;
         
 
         // submit to queue
+        vk::SubmitInfo submit_info{};
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &cmd_buffer;
+        auto queue = device.getQueue(graphics_queue_family_index, 0);
+        queue.submit(1, &submit_info, frame_data[current_frame]->fence);
+        // std::cout << "Submitted command buffer" << std::endl;
+
+        current_frame  = (current_frame + 1) % swapchain->get_num_images();
 
     }
 };
