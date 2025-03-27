@@ -61,6 +61,7 @@ VmaAllocation rt_image_allocation;
 
 // Semaphores for synchronization
 vk::Semaphore sem;
+vk::Semaphore sc_image_available;
 
 
 FrameData(std::shared_ptr<CommonFrameData> common_data, int width, int height, int frame_index): 
@@ -130,10 +131,11 @@ device(common_data->device), width(width), height(height), frame_index(frame_ind
     // Create semaphore
     vk::SemaphoreCreateInfo sem_info{};
     device.createSemaphore(&sem_info, nullptr, &sem);
+    device.createSemaphore(&sem_info, nullptr, &sc_image_available);
 }
 
 ~FrameData() {
-
+    device.destroySemaphore(sc_image_available);
     device.destroySemaphore(sem);
     device.destroyImageView(rt_image_view);
     vmaDestroyImage(common_data->allocator, rt_image, rt_image_allocation);
