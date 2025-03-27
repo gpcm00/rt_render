@@ -388,43 +388,19 @@ class Renderer {
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), nullptr, nullptr, barrier_src);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), nullptr, nullptr, barrier_dst);
 
-        // First transition the swapchain image to a transfer destination layout
-        /*
-        vk::ImageMemoryBarrier copy_barrier(
-            vk::AccessFlagBits::eShaderRead, vk::AccessFlagBits::eTransferWrite,
-            vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferDstOptimal,
-            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-            swapchain->get_image(swapchain_image_index), subresource_range);
-        cmd_buffer.pipelineBarrier(
-            vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eTransfer,
-            vk::DependencyFlags(), nullptr, nullptr, copy_barrier);
-        // Copy the image
-        vk::ImageCopy copy_region(
-            vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
-            vk::Offset3D(0, 0, 0),
-            vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
-            vk::Offset3D(0, 0, 0),
-            vk::Extent3D(r_width, r_height, 1));
-        cmd_buffer.copyImage(
-            frame_data[current_frame]->rt_image, vk::ImageLayout::eTransferSrcOptimal,
-            swapchain->get_image(swapchain_image_index), vk::ImageLayout::eTransferDstOptimal,
-            1, &copy_region);
-        // Transfer the swapchain image to present source layout
-        copy_barrier = vk::ImageMemoryBarrier(
-            vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead,
-            vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR,
-            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-            swapchain->get_image(swapchain_image_index), subresource_range);
-        cmd_buffer.pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe,
-            vk::DependencyFlags(), nullptr, nullptr, copy_barrier);
-      */
+        // End command buffer  
         cmd_buffer.end();
 
         // submit to queue
         vk::SubmitInfo submit_info{};
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &cmd_buffer;
+        submit_info.waitSemaphoreCount = 1;
+        const vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eTransfer;
+        submit_info.pWaitDstStageMask = &wait_stage;
+        submit_info.pWaitSemaphores = &frame_data[current_frame]->sc_image_available;
+        submit_info.signalSemaphoreCount = 1;
+        submit_info.pSignalSemaphores = &frame_data[current_frame]->sem;
         auto queue = device.getQueue(graphics_queue_family_index, 0);
         queue.submit(1, &submit_info, frame_data[current_frame]->fence);
         // std::cout << "Submitted command buffer" << std::endl;
@@ -432,7 +408,7 @@ class Renderer {
         // Prepare for present
         vk::PresentInfoKHR present_info{};
         present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &frame_data[current_frame]->sc_image_available;
+        present_info.pWaitSemaphores = &frame_data[current_frame]->sem;
         present_info.swapchainCount = 1;
         present_info.pSwapchains = &swapchain->get_swapchain();
         present_info.pImageIndices = &swapchain_image_index;
