@@ -338,11 +338,21 @@ class Renderer {
 
         // set up work for the current frame
         // std::cout << "Waiting for command buffer" << std::endl;
-
-        auto & cmd_buffer = frame_data[current_frame]->command_buffer;
         device.waitForFences(1, &frame_data[current_frame]->fence, VK_TRUE, UINT64_MAX);
         device.resetFences(1, &frame_data[current_frame]->fence);
 
+        // acquire next swapchain image
+        uint32_t swapchain_image_index;
+        auto ret_acquire = device.acquireNextImageKHR(swapchain->get_swapchain(), UINT64_MAX, frame_data[current_frame]->sc_image_available, nullptr, &swapchain_image_index);
+        if (ret_acquire == vk::Result::eErrorOutOfDateKHR) {
+            // TODO: recreate swapchain
+            return;
+        } else if (ret_acquire != vk::Result::eSuccess && ret_acquire != vk::Result::eSuboptimalKHR) {
+            throw std::runtime_error("Failed to acquire swapchain image");
+        }
+
+        // Start recording command buffer
+        auto & cmd_buffer = frame_data[current_frame]->command_buffer;
         vk::CommandBufferBeginInfo begin_info{};
         begin_info.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         cmd_buffer.begin(begin_info);
@@ -364,28 +374,20 @@ class Renderer {
         barrier = vk::ImageMemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eTransferRead, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), nullptr, nullptr, barrier);
         
-        // acquire next swapchain image
-        uint32_t swapchain_image_index;
-        device.acquireNextImageKHR(swapchain->get_swapchain(), UINT64_MAX, frame_data[current_frame]->sc_image_available, nullptr, &swapchain_image_index);
-        
-        // Blit rt_image into swapchain image
 
+        // Blit rt_image into swapchain image
         vk::ImageBlit blit(
             vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
             { vk::Offset3D{0, 0, 0}, vk::Offset3D{r_width, r_height, 1} },
             vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
             { vk::Offset3D{0, 0, 0}, vk::Offset3D{r_width, r_height, 1} }
         );
-        vk::ImageSubresourceRange subresource_range_src(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
         vk::ImageSubresourceRange subresource_range_dst(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-        vk::ImageMemoryBarrier barrier_src(vk::AccessFlagBits::eShaderRead, vk::AccessFlagBits::eTransferRead, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range_src);  
         vk::ImageMemoryBarrier barrier_dst(vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, swapchain->get_image(swapchain_image_index), subresource_range_dst);
-        cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), nullptr, nullptr, barrier_src);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), nullptr, nullptr, barrier_dst);
         cmd_buffer.blitImage(frame_data[current_frame]->rt_image, vk::ImageLayout::eTransferSrcOptimal, swapchain->get_image(swapchain_image_index), vk::ImageLayout::eTransferDstOptimal, 1, &blit, vk::Filter::eNearest);
-        barrier_src = vk::ImageMemoryBarrier(vk::AccessFlagBits::eTransferRead, vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range_src);
         barrier_dst = vk::ImageMemoryBarrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, swapchain->get_image(swapchain_image_index), subresource_range_dst);
-        cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), nullptr, nullptr, barrier_src);
+        // Transition swapchain image to present layout
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), nullptr, nullptr, barrier_dst);
 
         // End command buffer  
