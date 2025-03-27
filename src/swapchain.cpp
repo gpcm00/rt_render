@@ -57,7 +57,7 @@ Swapchain::Swapchain(vk::PhysicalDevice & physical_device, vk::Device & device, 
 
 	// create the swap chain
 	vk::SwapchainCreateInfoKHR create_info(vk::SwapchainCreateFlagsKHR(), surface, image_count, 
-		surface_format.format, surface_format.colorSpace, extent, 1, vk::ImageUsageFlagBits::eColorAttachment,
+		surface_format.format, surface_format.colorSpace, extent, 1, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eColorAttachment,
 		vk::SharingMode::eExclusive, 0, nullptr, capabilities.currentTransform, 
 		vk::CompositeAlphaFlagBitsKHR::eOpaque, present_mode, true, nullptr);
 
