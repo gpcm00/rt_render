@@ -118,6 +118,11 @@ vk::Format & Swapchain::get_format()
 {
 	return format;
 }
+vk::Image & Swapchain::get_image(unsigned int index)
+{
+	return images.at(index);
+}
+
 vk::ImageView & Swapchain::get_image_view(unsigned int index)
 {
 	return image_views.at(index);
@@ -126,7 +131,7 @@ vk::Framebuffer & Swapchain::get_frame_buffer(unsigned int index)
 {
 	return framebuffers.at(index);
 }
-vk::SwapchainKHR Swapchain::get_swapchain()
+vk::SwapchainKHR & Swapchain::get_swapchain()
 {
 	return swapchain.get();
 }

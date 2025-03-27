@@ -122,7 +122,7 @@ class Renderer {
     VmaAllocator allocator;
     std::shared_ptr<CommonFrameData> common_data;
     std::vector<std::unique_ptr<FrameData>> frame_data;
-    int current_frame;
+    uint32_t current_frame;
     
 
 
@@ -313,11 +313,12 @@ class Renderer {
     // Set up common and frame-specific data
     void frame_setup() {
 
+        // You'll need to recreate all this if the swapchain changes
         common_data = std::make_shared<CommonFrameData>(device, allocator, swapchain->get_num_images(), graphics_queue_family_index);
         current_frame = 0;
         // frame_data.resize(swapchain->get_num_images());
         for (int i = 0; i < swapchain->get_num_images(); i++) {
-            frame_data.emplace_back(std::make_unique<FrameData>(common_data, i));
+            frame_data.emplace_back(std::make_unique<FrameData>(common_data, r_width, r_height, i));
         }
     }
 
@@ -343,10 +344,20 @@ class Renderer {
         vk::CommandBufferBeginInfo begin_info{};
         begin_info.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         cmd_buffer.begin(begin_info);
-        cmd_buffer.end();
 
         // std::cout << "Recorded command buffer" << std::endl;
+
+        // Clear rt_image with red (for testing)
+        vk::ClearColorValue clear_color(std::array<float, 4>{1.0f, 0.0f, 0.0f, 1.0f});
+        vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+        vk::ImageMemoryBarrier barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
+        cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), nullptr, nullptr, barrier);
+        cmd_buffer.clearColorImage(frame_data[current_frame]->rt_image, vk::ImageLayout::eTransferDstOptimal, clear_color, subresource_range);
+        barrier = vk::ImageMemoryBarrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
+        cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::DependencyFlags(), nullptr, nullptr, barrier);
         
+        // Copy rt_image into swapchain image
+        cmd_buffer.end();
 
         // submit to queue
         vk::SubmitInfo submit_info{};
@@ -355,6 +366,14 @@ class Renderer {
         auto queue = device.getQueue(graphics_queue_family_index, 0);
         queue.submit(1, &submit_info, frame_data[current_frame]->fence);
         // std::cout << "Submitted command buffer" << std::endl;
+
+        // Prepare for present
+        // vk::PresentInfoKHR present_info{};
+        // present_info.waitSemaphoreCount = 0;
+        // present_info.pWaitSemaphores = nullptr;
+        // present_info.swapchainCount = 1;
+        // present_info.pSwapchains = &swapchain->get_swapchain();
+        // present_info.pImageIndices = &current_frame;
 
         current_frame  = (current_frame + 1) % swapchain->get_num_images();
 

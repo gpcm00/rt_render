@@ -22,9 +22,10 @@ public:
 		vk::Extent2D & get_extent();
 		vk::Format & get_format();
 
+		vk::Image & get_image(unsigned int index);
 		vk::ImageView & get_image_view(unsigned int index);
 		vk::Framebuffer & get_frame_buffer(unsigned int index);
-		vk::SwapchainKHR get_swapchain();
+		vk::SwapchainKHR & get_swapchain();
 
 		~Swapchain();
 
