@@ -320,6 +320,43 @@ class Renderer {
         for (int i = 0; i < swapchain->get_num_images(); i++) {
             frame_data.emplace_back(std::make_unique<FrameData>(common_data, r_width, r_height, i));
         }
+        
+        // Create descriptor sets for the pipeline
+        vk::DescriptorSetLayoutBinding bindings[2] = {};
+
+        // Binding 0: Acceleration Structure
+        bindings[0].binding = 0;
+        bindings[0].descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+        bindings[0].descriptorCount = 1;
+        bindings[0].stageFlags = vk::ShaderStageFlagBits::eRaygenKHR;
+        
+        // Binding 1: Storage Image
+        bindings[1].binding = 1;
+        bindings[1].descriptorType = vk::DescriptorType::eStorageImage;
+        bindings[1].descriptorCount = 1;
+        bindings[1].stageFlags = vk::ShaderStageFlagBits::eRaygenKHR;
+        
+        vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.bindingCount = 2;
+        layoutInfo.pBindings = bindings;
+
+        vk::DescriptorSetLayout descriptor_set_layout;
+
+        device.createDescriptorSetLayout(&layoutInfo, nullptr, &descriptor_set_layout);
+
+        for (int i = 0; i < swapchain->get_num_images(); i++) {
+
+            vk::DescriptorSetAllocateInfo alloc_info{};
+            alloc_info.descriptorPool = frame_data[i]->descriptor_pool;
+            alloc_info.descriptorSetCount = 1;
+            alloc_info.pSetLayouts = &descriptor_set_layout;
+
+            vk::DescriptorSet descriptor_set;
+            device.allocateDescriptorSets(&alloc_info, &descriptor_set);
+
+            frame_data[i]->descriptor_sets[descriptor_set_layout] = descriptor_set;
+
+        }
     }
 
     void frame_cleanup() {
@@ -333,6 +370,7 @@ class Renderer {
         frame_data.clear();
         common_data.reset();
     }
+    
 
     void render(const FrameConstants & frame_constants) {
 
@@ -369,6 +407,18 @@ class Renderer {
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::DependencyFlags(), nullptr, nullptr, barrier);
         
         // Ray tracing commands ....
+        // cmd_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, pipeline.get_pipeline());
+        // cmd_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, pipeline.get_layout(), 0, 
+        // frame_data[current_frame]->descriptor_set, nullptr);
+
+        // cmd_buffer.traceRaysKHR(
+        //     rgen_sbt, 
+        //     miss_sbt.buffer,
+        //     hit_sbt.buffer,
+        //     nullptr,
+        //     r_width, r_height, 1
+        // );
+
 
         // After ray tracing is done, transition the image to a transfer source layout
         barrier = vk::ImageMemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eTransferRead, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);

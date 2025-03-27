@@ -66,7 +66,7 @@ class Pipeline {
         return nstage;
     }
 
-    vk::Pipeline pipeline_data() {
+    vk::Pipeline & get_pipeline() {
         return rt_pipeline;
     }
 

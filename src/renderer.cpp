@@ -365,7 +365,7 @@ void Renderer::create_sbt() {
     const vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress;
 
     uint8_t* handle_storage;
-    device.getRayTracingShaderGroupHandlesKHR(pipeline.pipeline_data(), 0, count, sbt_size, handle_storage, dl);
+    device.getRayTracingShaderGroupHandlesKHR(pipeline.get_pipeline(), 0, count, sbt_size, handle_storage, dl);
 
     // SBTs.resize(count);
     // uint32_t chunk = 0;

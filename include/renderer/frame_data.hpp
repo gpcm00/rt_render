@@ -17,6 +17,9 @@ friend class FrameData;
 
 public:
 
+    std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
+
+
     CommonFrameData(vk::Device & device, VmaAllocator & allocator, size_t num_frames, int graphics_queue_family_index): 
     device(device), allocator(allocator), num_frames(num_frames) {
 
@@ -29,6 +32,11 @@ public:
     }
 
     ~CommonFrameData() {
+
+        for (auto& layout: descriptor_set_layouts) {
+            device.destroyDescriptorSetLayout(layout);
+        }
+        descriptor_set_layouts.clear();
 
         device.destroyCommandPool(command_pool);
 
@@ -62,6 +70,13 @@ VmaAllocation rt_image_allocation;
 // Semaphores for synchronization
 vk::Semaphore sem;
 vk::Semaphore sc_image_available;
+
+// Descriptor set nonsense
+// TODO: Try descriptor buffers later
+vk::DescriptorPool descriptor_pool;
+std::unordered_map<vk::DescriptorSetLayout, vk::DescriptorSet> descriptor_sets;
+
+
 
 
 FrameData(std::shared_ptr<CommonFrameData> common_data, int width, int height, int frame_index): 
@@ -132,9 +147,34 @@ device(common_data->device), width(width), height(height), frame_index(frame_ind
     vk::SemaphoreCreateInfo sem_info{};
     device.createSemaphore(&sem_info, nullptr, &sem);
     device.createSemaphore(&sem_info, nullptr, &sc_image_available);
+
+    // Descriptor pool creation
+    // We'll try using one pool per frame for all pipeline layouts
+    vk::DescriptorPoolSize pool_size{};
+    pool_size.type = vk::DescriptorType::eAccelerationStructureKHR;
+    pool_size.descriptorCount = 1;
+
+    vk::DescriptorPoolSize pool_size2{};
+    pool_size2.type = vk::DescriptorType::eStorageImage;
+    pool_size2.descriptorCount = 1;
+
+    const auto pool_sizes = std::array{pool_size, pool_size2};
+    
+    vk::DescriptorPoolCreateInfo descriptor_pool_info{};
+    descriptor_pool_info.maxSets = 10;
+    descriptor_pool_info.poolSizeCount = 1;
+    descriptor_pool_info.pPoolSizes = pool_sizes.data();
+
+
+    device.createDescriptorPool(&descriptor_pool_info, nullptr, &descriptor_pool);
+
+    // Now create a descriptor 
 }
 
 ~FrameData() {
+
+    device.destroyDescriptorPool(descriptor_pool);
+
     device.destroySemaphore(sc_image_available);
     device.destroySemaphore(sem);
     device.destroyImageView(rt_image_view);
