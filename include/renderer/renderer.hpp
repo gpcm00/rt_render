@@ -176,7 +176,8 @@ class Renderer {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
         };
         float queue_priority = 1.0f;
         vk::DeviceQueueCreateInfo queue_create_info({}, 0, 1, &queue_priority);
@@ -210,13 +211,49 @@ class Renderer {
             queue_create_infos.push_back(vk::DeviceQueueCreateInfo({}, present_queue_family_index, 1, &queue_priority));
         }
 
-        vk::PhysicalDeviceFeatures device_features = {};
-        device_features.samplerAnisotropy = VK_TRUE;
+        // Chain a bunch of physical device features
 
+        // vk::PhysicalDeviceFeatures device_features = {};
+        // device_features.samplerAnisotropy = VK_TRUE;
+        // Ray tracing pipelines
         vk::PhysicalDeviceRayTracingPipelineFeaturesKHR physical_device_ray_tracing_pipeline_features{};
         physical_device_ray_tracing_pipeline_features.rayTracingPipeline = true;
 
-        vk::DeviceCreateInfo device_create_info({}, queue_create_infos.size(), queue_create_infos.data(), 0, nullptr, device_extensions.size(), device_extensions.data(), &device_features, &physical_device_ray_tracing_pipeline_features);
+        // Buffer device addresses (for acceleration structures)
+        vk::PhysicalDeviceBufferDeviceAddressFeatures address_features;
+        address_features.bufferDeviceAddress = true;
+        address_features.pNext = &physical_device_ray_tracing_pipeline_features;
+        
+        // Acceleration structures
+        vk::PhysicalDeviceAccelerationStructureFeaturesKHR acc_features;
+        acc_features.accelerationStructure = true;
+        acc_features.pNext = &address_features;
+
+        vk::PhysicalDeviceFeatures2 device_features2;
+        device_features2.pNext = &acc_features;
+
+        vk::DeviceCreateInfo device_create_info(
+            {},
+            queue_create_infos,
+            validation_layers,
+            device_extensions,
+            nullptr,
+            &device_features2
+        );
+
+        // vk::DeviceCreateInfo device_create_info(
+        //     {}, 
+        //     queue_create_infos.size(),
+        //     queue_create_infos.data(), 
+        //     0, 
+        //     nullptr, 
+        //     device_extensions.size(),
+        //     device_extensions.data(), 
+        //     &device_features, 
+        //     &device_features2
+        //     );
+
+        // vk::DeviceCreateInfo device_create_info({}, queue_create_infos.size(), queue_create_infos.data(), 0, nullptr, device_extensions.size(), device_extensions.data(), &device_features, &device_features2);
 
         device = physical_device.createDevice(device_create_info);
 
@@ -230,6 +267,7 @@ class Renderer {
         allocator_info.physicalDevice = physical_device;
         allocator_info.device = device;
         allocator_info.instance = instance;
+        allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         vmaCreateAllocator(&allocator_info, &allocator);
     }
 
@@ -320,6 +358,29 @@ class Renderer {
         for (int i = 0; i < swapchain->get_num_images(); i++) {
             frame_data.emplace_back(std::make_unique<FrameData>(common_data, r_width, r_height, i));
         }
+
+        // Scene specific stuff?
+        // Create an empty acceleration structure with buffer using VMA
+        vk::BufferCreateInfo buffer_info{};
+        buffer_info.size = 1024; // Placeholder
+        buffer_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        buffer_info.sharingMode = vk::SharingMode::eExclusive;
+
+        VmaAllocationCreateInfo alloc_info{};
+        alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+        if (vmaCreateBuffer(allocator, reinterpret_cast<VkBufferCreateInfo*>(&buffer_info), &alloc_info, 
+        reinterpret_cast<VkBuffer*>(&common_data->tlas_buffer), &common_data->tlas_allocation, nullptr) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create TLAS buffer");
+        }
+
+        // Create empty TLAS
+        vk::AccelerationStructureCreateInfoKHR acc_create_info{};
+        acc_create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+        acc_create_info.size = 0; // No geometry yet
+        acc_create_info.buffer = common_data->tlas_buffer;
+
+        common_data->tlas = device.createAccelerationStructureKHR(acc_create_info, nullptr, dl);
         
         // Create descriptor sets for the pipeline
         vk::DescriptorSetLayoutBinding bindings[2] = {};
@@ -356,7 +417,38 @@ class Renderer {
 
             frame_data[i]->descriptor_sets[descriptor_set_layout] = descriptor_set;
 
+            // Fill descriptor set
+            vk::WriteDescriptorSet acc_desc_write;
+            acc_desc_write.dstSet = descriptor_set;
+            acc_desc_write.dstBinding = 0;
+            acc_desc_write.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+            acc_desc_write.descriptorCount = 1;
+            vk::WriteDescriptorSetAccelerationStructureKHR  acc_list;
+            acc_list.accelerationStructureCount = 1;
+            acc_list.pAccelerationStructures = &common_data->tlas;
+            acc_desc_write.pNext = &acc_list;
+
+            vk::WriteDescriptorSet img_desc_write;
+            img_desc_write.dstSet = descriptor_set;
+            img_desc_write.dstBinding = 1;
+            img_desc_write.descriptorType = vk::DescriptorType::eStorageImage;
+            img_desc_write.descriptorCount = 1;
+
+            vk::DescriptorImageInfo img_info;
+            img_info.imageLayout = vk::ImageLayout::eGeneral;
+            img_info.imageView = frame_data[i]->rt_image_view;
+            img_desc_write.pImageInfo = &img_info;
+
+            vk::WriteDescriptorSet writes[] = {acc_desc_write, img_desc_write};
+            device.updateDescriptorSets(2, writes, 0, nullptr);
+
+
+
         }
+
+
+        // Create empty acceleration structure
+
     }
 
     void frame_cleanup() {

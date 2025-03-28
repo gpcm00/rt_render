@@ -18,6 +18,10 @@ friend class FrameData;
 public:
 
     std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
+    // For the scene
+    vk::AccelerationStructureKHR tlas;
+    VmaAllocation tlas_allocation;
+    vk::Buffer tlas_buffer;
 
 
     CommonFrameData(vk::Device & device, VmaAllocator & allocator, size_t num_frames, int graphics_queue_family_index): 
@@ -37,6 +41,8 @@ public:
             device.destroyDescriptorSetLayout(layout);
         }
         descriptor_set_layouts.clear();
+
+        vmaDestroyBuffer(allocator, tlas_buffer, tlas_allocation);
 
         device.destroyCommandPool(command_pool);
 
