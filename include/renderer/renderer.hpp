@@ -9,6 +9,7 @@
 #include <geometry/geometry.hpp>
 #include <renderer/frame_constants.hpp>
 #include <renderer/frame_data.hpp>
+#include <renderer/rt_pipeline.hpp>
 
 #include <unordered_map>
 #include <memory>
@@ -104,15 +105,15 @@ class Renderer {
     std::vector<InstanceBuffer> objects{};
 
     Command_Pool pool;
-    Pipeline pipeline;
+    // Pipeline pipeline;
 
     Scene scene;
 
     UnifromBuffer camera;
 
-    ShaderBindingTable rgen_sbt;
-    ShaderBindingTable miss_sbt;
-    ShaderBindingTable hit_sbt;
+    // ShaderBindingTable rgen_sbt;
+    // ShaderBindingTable miss_sbt;
+    // ShaderBindingTable hit_sbt;
 
     // std::vector<ShaderBindingTable> SBTs;
 
@@ -123,6 +124,8 @@ class Renderer {
     std::shared_ptr<CommonFrameData> common_data;
     std::vector<std::unique_ptr<FrameData>> frame_data;
     uint32_t current_frame;
+
+    std::unique_ptr<RTPipeline> pipeline;
     
 
 
@@ -259,7 +262,6 @@ class Renderer {
 
         pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
         // pool = Command_Pool((const vk::Device*)&device, (vk::PhysicalDevice)physical_device, vk::QueueFlagBits::eGraphics);
-        // create_pipeline();
 
         // Create VmaAllocator
 
@@ -269,19 +271,43 @@ class Renderer {
         allocator_info.instance = instance;
         allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         vmaCreateAllocator(&allocator_info, &allocator);
+
+        // create_pipeline();
+        create_rt_pipeline();
+
     }
 
-    void create_descriptor_sets();
+    void create_rt_pipeline() {
 
+        // Create descriptor set bindings
+        std::vector<vk::DescriptorSetLayoutBinding> bindings = {
+            {0, vk::DescriptorType::eAccelerationStructureKHR, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
+            {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}
+        };
+
+        // Create pipeline
+        pipeline = std::make_unique<RTPipeline>(
+            device, 
+            dl,
+            bindings,
+            "shaders/shader.rgen.spv", 
+            "shaders/shader.rmiss.spv", 
+            "shaders/shader.rchit.spv"
+        );
+        
+    }
+
+    // void create_descriptor_sets();
+/*
     void create_pipeline() {
         // pipeline = Pipeline((VkDevice*)&device);
         pipeline = Pipeline((vk::Device*)&device, dl);
         pipeline.add_binding(vk::DescriptorType::eAccelerationStructureKHR);
         // pipeline.add_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-        pipeline.add_binding(vk::DescriptorType::eUniformBuffer);
+        pipeline.add_binding(vk::DescriptorType::eStorageImage);
         pipeline.create_set();
 
-        create_descriptor_sets();
+        // create_descriptor_sets();
 
         std::string rengen_module_path = "shaders/shader.rgen.spv";
         std::string miss_module_path = "shaders/shader.rmiss.spv";
@@ -292,8 +318,10 @@ class Renderer {
         pipeline.push_module(clhit_module_path, vk::ShaderStageFlagBits::eClosestHitKHR);
         pipeline.create_rt_pipeline(3);
     }
+    */
 
     void cleanup_vulkan() {
+        pipeline.reset();
         vmaDestroyAllocator(allocator);
         device.destroy();
         instance.destroySurfaceKHR(surface);
@@ -389,13 +417,13 @@ class Renderer {
         bindings[0].binding = 0;
         bindings[0].descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
         bindings[0].descriptorCount = 1;
-        bindings[0].stageFlags = vk::ShaderStageFlagBits::eRaygenKHR;
+        bindings[0].stageFlags = vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR;
         
         // Binding 1: Storage Image
         bindings[1].binding = 1;
         bindings[1].descriptorType = vk::DescriptorType::eStorageImage;
         bindings[1].descriptorCount = 1;
-        bindings[1].stageFlags = vk::ShaderStageFlagBits::eRaygenKHR;
+        bindings[1].stageFlags = vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR;
         
         vk::DescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.bindingCount = 2;

@@ -19,10 +19,10 @@ static vk::WriteDescriptorSet populate_write_descriptor(vk::Buffer buffer, vk::D
 static vk::RayTracingShaderGroupCreateInfoKHR populate_group(vk::ShaderStageFlagBits stage_flag, uint32_t index) {
     vk::RayTracingShaderGroupCreateInfoKHR group{};
     group.type = vk::RayTracingShaderGroupTypeKHR::eGeneral;
-    group.generalShader = VK_SHADER_UNUSED_KHR; 
-    group.closestHitShader = VK_SHADER_UNUSED_KHR;
-    group.anyHitShader = VK_SHADER_UNUSED_KHR;
-    group.intersectionShader = VK_SHADER_UNUSED_KHR;
+    group.generalShader = vk::ShaderUnusedKHR; 
+    group.closestHitShader =  vk::ShaderUnusedKHR;
+    group.anyHitShader =  vk::ShaderUnusedKHR;
+    group.intersectionShader =  vk::ShaderUnusedKHR;
 
     switch (stage_flag) {
         case vk::ShaderStageFlagBits::eRaygenKHR:
@@ -71,7 +71,7 @@ vk::ShaderModule Pipeline::load_module(std::string file_name) {
     createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer.data());
 
     vk::ShaderModule shaderModule;
-    if (device->createShaderModule(&createInfo, nullptr, &shaderModule) != vk::Result::eSuccess) {
+    if (device.createShaderModule(&createInfo, nullptr, &shaderModule) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create shader module: " + file_name);
     }
 
@@ -127,7 +127,7 @@ void Pipeline::create_set() {
     info.pBindings = bindings.data();
 
     vk::DescriptorSetLayout set;
-    if (device->createDescriptorSetLayout(&info, nullptr, &set) != vk::Result::eSuccess) {
+    if (device.createDescriptorSetLayout(&info, nullptr, &set) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create ray tracing descriptor set layout!");
     }
 
@@ -168,7 +168,7 @@ void Pipeline::create_rt_pipeline(uint32_t ray_depth) {
     layout_info.pPushConstantRanges = &constants;
     layout_info.setLayoutCount = sets.size();
     layout_info.pSetLayouts = sets.data();
-    if (device->createPipelineLayout(&layout_info, nullptr, &layout) != vk::Result::eSuccess) {
+    if (device.createPipelineLayout(&layout_info, nullptr, &layout) != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create pipeline layout");
     }
 
@@ -180,7 +180,7 @@ void Pipeline::create_rt_pipeline(uint32_t ray_depth) {
     pipeline_info.maxPipelineRayRecursionDepth = ray_depth;
     pipeline_info.layout = layout;
 
-    auto ret = device->createRayTracingPipelineKHR(nullptr, nullptr, pipeline_info, nullptr, dl);
+    auto ret = device.createRayTracingPipelineKHR(nullptr, nullptr, pipeline_info, nullptr, dl);
     if (ret.result != vk::Result::eSuccess) {
         throw std::runtime_error("Failed to create pipeline");
     }
@@ -188,7 +188,7 @@ void Pipeline::create_rt_pipeline(uint32_t ray_depth) {
     rt_pipeline = ret.value;
 
     for (auto& module : modules) {
-        device->destroyShaderModule(module.module);
+        device.destroyShaderModule(module.module);
     }
 
 }

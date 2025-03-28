@@ -42,7 +42,7 @@ static void submit_copy_command(Command_Pool& pool, vk::Buffer src, vk::Buffer d
     pool.submit_command(copy_command);
     pool.free_command_buffer(copy_command);
 }
-
+/*
 void Renderer::create_descriptor_sets() {
     std::vector<vk::DescriptorPoolSize> pool_sizes {
         {vk::DescriptorType::eAccelerationStructureKHR, 1},
@@ -85,7 +85,7 @@ void Renderer::create_descriptor_sets() {
 
     // device.updateDescriptorSets(wds, nullptr);
 }
-
+*/
 void Renderer::create_ubo() {
     create_buffer(camera.map.buffer, camera.map.memory, sizeof(Camera), vk::BufferUsageFlagBits::eUniformBuffer, 
     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
@@ -348,6 +348,7 @@ void Renderer::load_scene(std::string file_path) {
     create_TLAS();
 }
 
+/*
 void Renderer::create_sbt() {
     vk::PhysicalDeviceProperties2 properties;
     vk::PhysicalDeviceRayTracingPipelinePropertiesKHR rt_properties;
@@ -377,3 +378,4 @@ void Renderer::create_sbt() {
     create_device_buffer(miss_sbt.buffer, miss_sbt.memory, handle_storage + handle_size_aligned, handle_size, usage);
     create_device_buffer(hit_sbt.buffer, hit_sbt.memory, handle_storage + handle_size_aligned*2, handle_size, usage);
 }
+*/

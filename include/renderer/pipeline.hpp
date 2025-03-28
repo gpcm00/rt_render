@@ -20,7 +20,7 @@ struct PipelineModules {
 };
 
 class Pipeline {
-    vk::Device* device;
+    vk::Device& device;
     vk::detail::DispatchLoaderDynamic dl;
 
     size_t nstage;
@@ -42,7 +42,8 @@ class Pipeline {
     public:
     Pipeline() = default;
 
-    Pipeline(vk::Device* dev, vk::detail::DispatchLoaderDynamic & dl) : device(dev), dl(dl) {
+    Pipeline(vk::Device& device, vk::detail::DispatchLoaderDynamic & dl) 
+    : device(device), dl(dl) {
         miss_count = 0;
         chit_count = 0;
         intr_count = 0;
@@ -50,11 +51,11 @@ class Pipeline {
 
     ~Pipeline() {
         for (auto& set : sets) {
-            device->destroyDescriptorSetLayout(set);
+            device.destroyDescriptorSetLayout(set);
         }
 
-        device->destroyPipeline(rt_pipeline);
-        device->destroyPipelineLayout(layout);
+        device.destroyPipeline(rt_pipeline);
+        device.destroyPipelineLayout(layout);
     }
     
     void create_rt_pipeline(uint32_t ray_depth);
