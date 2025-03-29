@@ -348,7 +348,6 @@ void Renderer::load_scene(std::string file_path) {
     create_TLAS();
 }
 
-/*
 void Renderer::create_sbt() {
     vk::PhysicalDeviceProperties2 properties;
     vk::PhysicalDeviceRayTracingPipelinePropertiesKHR rt_properties;
@@ -361,21 +360,40 @@ void Renderer::create_sbt() {
     const uint32_t handle_size = rt_properties.shaderGroupHandleSize;
     const uint32_t handle_alignment = rt_properties.shaderGroupHandleAlignment;
     const uint32_t handle_size_aligned = (handle_size+handle_alignment-1)&~(handle_alignment-1);
-    const uint32_t count = pipeline.shader_count();
-    const uint32_t sbt_size = count * handle_size_aligned;
+    const uint32_t group_count = 3;
+    const uint32_t sbt_size = group_count * handle_size_aligned;
     const vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress;
 
-    uint8_t* handle_storage;
-    device.getRayTracingShaderGroupHandlesKHR(pipeline.get_pipeline(), 0, count, sbt_size, handle_storage, dl);
 
-    // SBTs.resize(count);
-    // uint32_t chunk = 0;
-    // for (auto& SBT : SBTs) {
-    //     create_device_buffer(SBT.buffer, SBT.memory, handle_storage + chunk * handle_size_aligned, handle_size, usage);
-    // }
+    std::vector<uint8_t> handle_storage(sbt_size);
 
-    create_device_buffer(rgen_sbt.buffer, rgen_sbt.memory, handle_storage, handle_size, usage);
-    create_device_buffer(miss_sbt.buffer, miss_sbt.memory, handle_storage + handle_size_aligned, handle_size, usage);
-    create_device_buffer(hit_sbt.buffer, hit_sbt.memory, handle_storage + handle_size_aligned*2, handle_size, usage);
+    device.getRayTracingShaderGroupHandlesKHR(pipeline->pipeline, 0, group_count, sbt_size, handle_storage.data(), dl);
+
+
+    auto [rgen_buffer, rgen_alloc] = create_device_buffer_with_data(handle_storage.data(), handle_size_aligned, usage);
+    auto [miss_buffer, miss_alloc] = create_device_buffer_with_data(handle_storage.data() + handle_size_aligned, handle_size_aligned, usage);
+    auto [hit_buffer, hit_alloc] = create_device_buffer_with_data(handle_storage.data() + handle_size_aligned*2, handle_size_aligned, usage);
+
+
+    rgen_sbt.buffer = rgen_buffer;
+    rgen_sbt.allocation = rgen_alloc;
+    rgen_sbt.region.deviceAddress = get_device_address(rgen_sbt.buffer);
+    rgen_sbt.region.size = handle_size_aligned;
+    rgen_sbt.region.stride = handle_size_aligned;
+
+    miss_sbt.buffer = miss_buffer;
+    miss_sbt.allocation = miss_alloc;
+    miss_sbt.region.deviceAddress = get_device_address(miss_sbt.buffer);
+    miss_sbt.region.size = handle_size_aligned;
+    miss_sbt.region.stride = handle_size_aligned;
+
+    hit_sbt.buffer = hit_buffer;
+    hit_sbt.allocation = hit_alloc;
+    hit_sbt.region.deviceAddress = get_device_address(hit_sbt.buffer);
+    hit_sbt.region.size = handle_size_aligned;
+    hit_sbt.region.stride = handle_size_aligned;
+
+    callable_sbt.region = vk::StridedDeviceAddressRegionKHR();
+
+    std::cout << "Created SBTs" << std::endl;
 }
-*/

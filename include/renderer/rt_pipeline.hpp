@@ -35,18 +35,15 @@ vk::ShaderModule load_module(std::string file_name) {
 
 public:
     vk::Device & device;
+    VmaAllocator & allocator;
+    vk::detail::DispatchLoaderDynamic& dl;
     vk::Pipeline pipeline;
     vk::PipelineLayout layout;
     vk::DescriptorSetLayout descriptor_set_layout;
-    // vk::ShaderModule rgen_module;
-    // vk::ShaderModule miss_module;
-    // vk::ShaderModule chit_module;
-    // vk::ShaderModule ahit_module;
-    // vk::ShaderModule intr_module;
 
-    RTPipeline(vk::Device & device, vk::detail::DispatchLoaderDynamic& dl, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, 
+    RTPipeline(vk::Device & device, VmaAllocator & allocator, vk::detail::DispatchLoaderDynamic& dl, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, 
          std::string rgen_path, const std::string miss_path, const std::string chit_path):
-        device(device) {
+        device(device), allocator(allocator), dl(dl) {
         std::cout << "Creating pipeline" << std::endl;
 
         std::vector<vk::ShaderModule> modules;
@@ -130,6 +127,8 @@ public:
         for (auto& module : modules) {
             device.destroyShaderModule(module);
         }
+
+
     }
     
     ~RTPipeline() {

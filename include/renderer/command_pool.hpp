@@ -26,7 +26,7 @@ class Command_Pool {
             queue_index++;
         }
 
-        vk::CommandPoolCreateInfo poolInfo{};
+        vk::CommandPoolCreateInfo poolInfo;
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
         poolInfo.queueFamilyIndex = queue_index;
 
@@ -45,10 +45,8 @@ class Command_Pool {
         info.commandPool = pool;
         info.commandBufferCount = 1;
 
-        vk::CommandBuffer command_buffer;
-        command_buffer = device->allocateCommandBuffers(info).front();
+        return  device->allocateCommandBuffers(info).front();
 
-        return command_buffer;
     }
 
     std::vector<vk::CommandBuffer> alloc_command_buffers(vk::CommandBufferLevel level, uint32_t count) {

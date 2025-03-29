@@ -20,7 +20,8 @@
 
 struct ShaderBindingTable {
     vk::Buffer buffer;
-    vk::DeviceMemory memory;
+    VmaAllocation allocation;
+    vk::StridedDeviceAddressRegionKHR region;
 };
 
 struct StagingBuffer {
@@ -105,17 +106,18 @@ class Renderer {
     std::vector<InstanceBuffer> objects{};
 
     Command_Pool pool;
+    vk::CommandPool general_command_pool;
     // Pipeline pipeline;
 
     Scene scene;
 
     UnifromBuffer camera;
 
-    // ShaderBindingTable rgen_sbt;
-    // ShaderBindingTable miss_sbt;
-    // ShaderBindingTable hit_sbt;
+    ShaderBindingTable rgen_sbt;
+    ShaderBindingTable miss_sbt;
+    ShaderBindingTable hit_sbt;
+    ShaderBindingTable callable_sbt;
 
-    // std::vector<ShaderBindingTable> SBTs;
 
     std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
     TopAccelerationBuffer tlas;
@@ -262,7 +264,11 @@ class Renderer {
 
         pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
         // pool = Command_Pool((const vk::Device*)&device, (vk::PhysicalDevice)physical_device, vk::QueueFlagBits::eGraphics);
-
+        // Create general command pool
+        vk::CommandPoolCreateInfo pool_info{};
+        pool_info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+        pool_info.queueFamilyIndex = graphics_queue_family_index; // assumes graphics and present queue family are the same
+        general_command_pool = device.createCommandPool(pool_info);
         // Create VmaAllocator
 
         VmaAllocatorCreateInfo allocator_info = {};
@@ -274,6 +280,7 @@ class Renderer {
 
         // create_pipeline();
         create_rt_pipeline();
+        create_sbt();
 
     }
 
@@ -288,6 +295,7 @@ class Renderer {
         // Create pipeline
         pipeline = std::make_unique<RTPipeline>(
             device, 
+            allocator,
             dl,
             bindings,
             "shaders/shader.rgen.spv", 
@@ -342,6 +350,80 @@ class Renderer {
     void create_ubo();
 
     void create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* vertices, vk::DeviceSize size, vk::BufferUsageFlags usage);
+
+
+    std::pair<vk::Buffer, VmaAllocation> create_staging_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
+        vk::Buffer staging_buffer;
+        VmaAllocation staging_allocation;
+
+        // Create a staging buffer for the data
+        vk::BufferCreateInfo buffer_info{};
+        buffer_info.size = size;
+        buffer_info.usage = usage | vk::BufferUsageFlagBits::eTransferSrc;
+        buffer_info.sharingMode = vk::SharingMode::eExclusive;
+
+        VmaAllocationCreateInfo alloc_info{};
+        alloc_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        // alloc_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        // alloc_info.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        // alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        if (vmaCreateBuffer(allocator, reinterpret_cast<VkBufferCreateInfo*>(&buffer_info), &alloc_info, 
+            reinterpret_cast<VkBuffer*>(&staging_buffer), &staging_allocation, nullptr) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create staging buffer");
+        }
+
+        // Map the buffer and copy the data
+        void* mapped_data;
+        vmaMapMemory(allocator, staging_allocation, &mapped_data);
+        memcpy(mapped_data, data, static_cast<size_t>(size));
+        vmaUnmapMemory(allocator, staging_allocation);
+
+        return {staging_buffer, staging_allocation};
+    }
+
+    std::pair<vk::Buffer, VmaAllocation> create_device_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
+        auto [staging_buffer, staging_allocation] = create_staging_buffer_with_data(data, size, usage);
+        std::cout << "Successfully created staging buffer" << std::endl;
+
+        // Create a device-local buffer for the data
+        vk::Buffer buffer;
+        VmaAllocation allocation;
+        vk::BufferCreateInfo buffer_info;
+        buffer_info.size = size;
+        buffer_info.usage = usage | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_info.sharingMode = vk::SharingMode::eExclusive;
+
+        VmaAllocationCreateInfo alloc_info{};
+        alloc_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+        
+        if (vmaCreateBuffer(allocator, reinterpret_cast<VkBufferCreateInfo*>(&buffer_info), &alloc_info, 
+            reinterpret_cast<VkBuffer*>(&buffer), &allocation, nullptr) != VK_SUCCESS) {
+            std::cout << "Failed to create device buffer" << std::endl;
+            throw std::runtime_error("Failed to create device buffer");
+        }
+        // Copy the data from the staging buffer to the device-local buffer
+        // auto & command_pool = common_data->get_command_pool();
+        auto cmd_buffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
+        vk::BufferCopy copy_region;
+        copy_region.size = size;
+        cmd_buffer.begin(vk::CommandBufferBeginInfo());
+        cmd_buffer.copyBuffer(staging_buffer, buffer, 1, &copy_region);
+        cmd_buffer.end();
+        auto q = device.getQueue(graphics_queue_family_index, 0);
+        vk::SubmitInfo submit_info;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &cmd_buffer;
+        q.submit(1, &submit_info, nullptr);
+        q.waitIdle();
+        device.freeCommandBuffers(general_command_pool, 1, &cmd_buffer);
+
+        vmaDestroyBuffer(allocator, staging_buffer, staging_allocation);
+
+        return {buffer, allocation};
+    }
 
     void create_BLAS(const MeshBuffer* mesh);
 
@@ -490,6 +572,7 @@ class Renderer {
 
         // Start recording command buffer
         auto & cmd_buffer = frame_data[current_frame]->command_buffer;
+        cmd_buffer.reset(vk::CommandBufferResetFlags());
         vk::CommandBufferBeginInfo begin_info{};
         begin_info.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
         cmd_buffer.begin(begin_info);
@@ -512,13 +595,14 @@ class Renderer {
                                       frame_data[current_frame]->descriptor_sets[pipeline->descriptor_set_layout],
                                       nullptr);
 
-        // cmd_buffer.traceRaysKHR(
-        //     rgen_sbt, 
-        //     miss_sbt.buffer,
-        //     hit_sbt.buffer,
-        //     nullptr,
-        //     r_width, r_height, 1
-        // );
+        cmd_buffer.traceRaysKHR(
+            &rgen_sbt.region, 
+            &miss_sbt.region,
+            &hit_sbt.region,
+            &callable_sbt.region,
+            r_width, r_height, 1,
+            dl
+        );
 
 
         // After ray tracing is done, transition the image to a transfer source layout

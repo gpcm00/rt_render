@@ -23,7 +23,6 @@ public:
     VmaAllocation tlas_allocation;
     vk::Buffer tlas_buffer;
 
-
     CommonFrameData(vk::Device & device, VmaAllocator & allocator, size_t num_frames, int graphics_queue_family_index): 
     device(device), allocator(allocator), num_frames(num_frames) {
 
