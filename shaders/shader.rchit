@@ -2,10 +2,14 @@
 #extension GL_EXT_ray_tracing : require
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(location = 0) rayPayloadInEXT vec3 hitValue;
-hitAttributeEXT vec3 attribs;
+// layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+// layout(binding = 1, set = 0, rgba8) uniform image2D image;
+
+// layout(location = 0) rayPayloadInEXT vec3 hitValue;
+layout(location = 0) rayPayloadInEXT vec4 hit_value;
+// hitAttributeEXT vec3 attribs;
 
 void main()
 {
-  hitValue = vec3(0.2, 0.5, 0.5);
+  hit_value = vec4(0.0, 1.0, 0.0, 1.0);
 }

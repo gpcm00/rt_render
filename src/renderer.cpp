@@ -86,12 +86,14 @@ void Renderer::create_descriptor_sets() {
     // device.updateDescriptorSets(wds, nullptr);
 }
 */
+/*
 void Renderer::create_ubo() {
     create_buffer(camera.map.buffer, camera.map.memory, sizeof(Camera), vk::BufferUsageFlagBits::eUniformBuffer, 
     vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
     camera.map.data = device.mapMemory(camera.map.memory, 0, sizeof(Camera));
 }
+*/
 
 void Renderer::create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* host_buffer, 
                                                             vk::DeviceSize size, vk::BufferUsageFlags usage) {
@@ -149,25 +151,35 @@ void Renderer::create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::D
     device.bindBufferMemory(buffer, memory, 0);
 }
 
-void Renderer::create_mesh_buffer(const Mesh* mesh) {
+void Renderer::create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Mesh* mesh) {
     MeshBuffer mesh_buffer;
 
     vk::BufferUsageFlags flags = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR | 
                                vk::BufferUsageFlagBits::eShaderDeviceAddress;
 
-    const void* data = mesh->vertices.data();
-    vk::DeviceSize size = mesh->vertices.size() * sizeof(Vertex);
-    create_device_buffer(mesh_buffer.vertex_buffer, mesh_buffer.vertex_memory, data, size, flags);
+    // Vertex buffer
+    // const void* data = mesh->vertices.data();
+    // vk::DeviceSize size = mesh->vertices.size() * sizeof(Vertex);
+    // create_device_buffer(mesh_buffer.vertex_buffer, mesh_buffer.vertex_memory, data, size, flags);
+    auto [vertex_buffer, vertex_allocation] 
+        = create_device_buffer_with_data(mesh->vertices.data(), mesh->vertices.size() * sizeof(Vertex), flags);
+    mesh_buffer.vertex_buffer = vertex_buffer;
+    mesh_buffer.vertex_allocation = vertex_allocation;
+    // Index buffer
+    // data =  mesh->indices.data();
+    // size = mesh->indices.size() * sizeof(uint32_t);
+    auto [index_buffer, index_allocation] = 
+        create_device_buffer_with_data(mesh->indices.data(), mesh->indices.size() * sizeof(uint32_t), flags);
+    mesh_buffer.index_buffer = index_buffer;
+    mesh_buffer.index_allocation = index_allocation;
+    // create_device_buffer(mesh_buffer.vertex_buffer, mesh_buffer.vertex_memory, data, size, flags);
+    // mesh_buffer.size = size;
 
-    data =  mesh->indices.data();
-    size = mesh->indices.size() * sizeof(uint32_t);
-    create_device_buffer(mesh_buffer.vertex_buffer, mesh_buffer.vertex_memory, data, size, flags);
-
-    mesh_buffer.size = size;
-    meshes[mesh] = mesh_buffer;
+    mesh_buffer.size = mesh->indices.size() * sizeof(uint32_t);
+    tlas->meshes[mesh] = mesh_buffer;
 }
 
-void Renderer::create_BLAS(const MeshBuffer* mesh) {
+void Renderer::create_BLAS(TopLevelAccelerationStructure * tlas, const MeshBuffer* mesh) {
     vk::BufferUsageFlags usage;
 
     vk::AccelerationStructureGeometryTrianglesDataKHR triangles{};
@@ -194,18 +206,23 @@ void Renderer::create_BLAS(const MeshBuffer* mesh) {
 
     usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress;
     AccelerationBuffer current{};
-    create_buffer(current.buffer, current.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
-
+    // create_buffer(current.buffer, current.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    auto [current_buffer, current_allocation] = 
+        create_device_buffer(size_info.accelerationStructureSize, usage);
+    current.buffer = current_buffer;
+    current.allocation = current_allocation;
+    
     vk::AccelerationStructureCreateInfoKHR create_info{};
-    create_info.buffer = current.buffer;
+    create_info.buffer = current_buffer;
     create_info.size = size_info.accelerationStructureSize;
     create_info.type = vk::AccelerationStructureTypeKHR::eBottomLevel;
     current.as = device.createAccelerationStructureKHR(create_info, nullptr, dl);
-
     usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-    AccelerationBuffer scratch{};  
-    create_buffer(scratch.buffer, scratch.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);    
-    
+    // AccelerationBuffer scratch{};  
+    // create_buffer(scratch.buffer, scratch.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);    
+    auto [scratch_buffer, scratch_allocation] = 
+        create_device_buffer(size_info.buildScratchSize, usage);
+
     vk::AccelerationStructureBuildGeometryInfoKHR scratch_info{};
     scratch_info.type = vk::AccelerationStructureTypeKHR::eBottomLevel;
     scratch_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
@@ -213,37 +230,51 @@ void Renderer::create_BLAS(const MeshBuffer* mesh) {
     scratch_info.geometryCount = 1;
     scratch_info.pGeometries = &geometry;
     scratch_info.dstAccelerationStructure = current.as;
-    scratch_info.scratchData.deviceAddress = get_device_address(scratch.buffer);
+    scratch_info.scratchData.deviceAddress = get_device_address(scratch_buffer);
 
     vk::AccelerationStructureBuildRangeInfoKHR range_info{};
     range_info.primitiveCount = primitive_count;
 
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR*> range_infos = {&range_info};
 
-    vk::CommandBuffer command = pool.single_command_buffer(vk::CommandBufferLevel::ePrimary);
-    command.buildAccelerationStructuresKHR(scratch_info, range_infos, dl);
-    command.end();
-    pool.submit_command(command);
-    pool.free_command_buffer(command);
+    // vk::CommandBuffer cmd_buffer = pool.single_command_buffer(vk::CommandBufferLevel::ePrimary);
+    vk::CommandBuffer cmd_buffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
+        general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
+    cmd_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+        
+    cmd_buffer.buildAccelerationStructuresKHR(scratch_info, range_infos, dl);
+    cmd_buffer.end();
 
-    device.destroyBuffer(scratch.buffer);
-    device.freeMemory(scratch.memory);
+    auto q = device.getQueue(graphics_queue_family_index, 0);
+    vk::SubmitInfo submit_info;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &cmd_buffer;
+    q.submit(1, &submit_info, nullptr);
+    q.waitIdle();
+    device.freeCommandBuffers(general_command_pool, 1, &cmd_buffer);
+
+    // pool.submit_command(command);
+    // pool.free_command_buffer(command);
+
+    // device.destroyBuffer(scratch.buffer);
+    // device.freeMemory(scratch.memory);
+    vmaDestroyBuffer(allocator, scratch_buffer, scratch_allocation);
 
     vk::AccelerationStructureDeviceAddressInfoKHR address_info{};
     address_info.accelerationStructure = current.as;
     current.as_addr = device.getAccelerationStructureAddressKHR(address_info, dl);
 
-    blas[mesh] = current;
+    tlas->blas[mesh] = current;
 }
 
-void Renderer::create_TLAS() {
+void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
     vk::BufferUsageFlags usage;
     
     std::vector<vk::AccelerationStructureInstanceKHR> instances;
     uint32_t instance_index = 0;
-    for (auto& object : objects) {
+    for (auto& object: tlas->instance_buffers) {
         vk::TransformMatrixKHR transform = from_mat4(object.transformation);
-        AccelerationBuffer current_blas = blas[object.mesh_buffer];
+        AccelerationBuffer current_blas = tlas->blas[object.mesh_buffer];
 
         vk::AccelerationStructureInstanceKHR instance{};
         instance.transform = transform;
@@ -255,13 +286,17 @@ void Renderer::create_TLAS() {
 
         instances.push_back(instance);
     }
-
-    usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+    // Create instance buffer
+    usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress
+    | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR;
     vk::DeviceSize size = instances.size() * sizeof(vk::AccelerationStructureInstanceKHR);
-    create_device_buffer(tlas.buffer, tlas.memory, instances.data(), size, usage);
+    // create_device_buffer(tlas.buffer, tlas.memory, instances.data(), size, usage);
+    auto [as_buffer, as_allocation] = 
+        create_device_buffer_with_data(instances.data(), size, usage);
+
 
     vk::DeviceOrHostAddressConstKHR instance_address{};
-    instance_address.deviceAddress = get_device_address(tlas.buffer);
+    instance_address.deviceAddress = get_device_address(as_buffer);
 
     vk::AccelerationStructureGeometryInstancesDataKHR geometry_data{};
     geometry_data.arrayOfPointers = VK_FALSE;
@@ -280,20 +315,28 @@ void Renderer::create_TLAS() {
 
     const uint32_t primitive_count = instances.size();
 
+    // Create tlas buffer
     vk::AccelerationStructureBuildSizesInfoKHR size_info{};
     size_info = device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice, geometry_info, primitive_count, dl);
     usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-    create_buffer(tlas.as.buffer, tlas.as.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    // create_buffer(tlas.as.buffer, tlas.as.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+    auto [tlas_buffer, tlas_allocation] = 
+        create_device_buffer(size_info.accelerationStructureSize, usage);
+    tlas->buffer = tlas_buffer;
+    tlas->allocation = tlas_allocation;
 
     vk::AccelerationStructureCreateInfoKHR create_info{};
-    create_info.buffer = tlas.buffer;
+    create_info.buffer = tlas->buffer;
     create_info.size = size_info.accelerationStructureSize;
     create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-    tlas.as.as = device.createAccelerationStructureKHR(create_info, nullptr, dl);
+    // tlas.as.as = device.createAccelerationStructureKHR(create_info, nullptr, dl);
+    tlas->structure = device.createAccelerationStructureKHR(create_info, nullptr, dl);
 
     usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-    AccelerationBuffer scratch{};  
-    create_buffer(scratch.buffer, scratch.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    // AccelerationBuffer scratch{};  
+    // create_buffer(scratch.buffer, scratch.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    auto [scratch_buffer, scratch_allocation] = 
+        create_device_buffer(size_info.buildScratchSize, usage);
 
     vk::AccelerationStructureBuildGeometryInfoKHR scratch_info{};
     scratch_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
@@ -301,51 +344,68 @@ void Renderer::create_TLAS() {
     scratch_info.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
     scratch_info.geometryCount = 1;
     scratch_info.pGeometries = &geometry;
-    scratch_info.dstAccelerationStructure = tlas.as.as;
-    scratch_info.scratchData.deviceAddress = get_device_address(scratch.buffer);
+    scratch_info.dstAccelerationStructure = tlas->structure;
+    scratch_info.scratchData.deviceAddress = get_device_address(scratch_buffer);
 
     vk::AccelerationStructureBuildRangeInfoKHR range_info{};
     range_info.primitiveCount = primitive_count;
 
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR*> range_infos = {&range_info};
-    vk::CommandBuffer command = pool.single_command_buffer(vk::CommandBufferLevel::ePrimary);
-    command.buildAccelerationStructuresKHR(scratch_info, range_infos, dl);
-    command.end();
-    pool.submit_command(command);
-    pool.free_command_buffer(command);
+    // vk::CommandBuffer cmd_buffer = pool.single_command_buffer(vk::CommandBufferLevel::ePrimary);
+    vk::CommandBuffer cmd_buffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
+        general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
+    cmd_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    cmd_buffer.buildAccelerationStructuresKHR(scratch_info, range_infos, dl);
+    cmd_buffer.end();
+
+    auto q = device.getQueue(graphics_queue_family_index, 0);
+    vk::SubmitInfo submit_info;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &cmd_buffer;
+    q.submit(1, &submit_info, nullptr);
+    q.waitIdle();
+    device.freeCommandBuffers(general_command_pool, 1, &cmd_buffer);
+
+    // pool.submit_command(command);
+    // pool.free_command_buffer(command);
 
     // note: keep scratch for dynamic scenes to avoid allocation overhead
-    device.destroyBuffer(scratch.buffer);
-    device.freeMemory(scratch.memory);
+    // device.destroyBuffer(scratch.buffer);
+    // device.freeMemory(scratch.memory);
+    vmaDestroyBuffer(allocator, scratch_buffer, scratch_allocation);
 
     vk::AccelerationStructureDeviceAddressInfoKHR address_info{};
-    address_info.accelerationStructure = tlas.as.as;
-    tlas.as.as_addr = device.getAccelerationStructureAddressKHR(address_info, dl);
+    address_info.accelerationStructure = tlas->structure; //tlas.as.as;
+    tlas->addr = device.getAccelerationStructureAddressKHR(address_info, dl);
 }
 
 void Renderer::load_scene(std::string file_path) {
     scene = Scene(file_path);
 
+    tlas = std::make_unique<TopLevelAccelerationStructure>(device, dl, 
+        general_command_pool, graphics_queue_family_index);
+    auto & meshes = tlas->meshes;
     for (auto& object : scene) {
-        InstanceBuffer current_instance;
+        // InstanceBuffer current_instance;
         auto it = meshes.find(object.mesh);
         if (it == meshes.end()) {
-            create_mesh_buffer(object.mesh);
+            create_mesh_buffer(tlas.get(), object.mesh);
             it = meshes.find(object.mesh);
             if (it == meshes.end()) {
                 throw std::runtime_error("Failed to create mesh buffer");
             }
 
-            create_BLAS(&it->second);
+            create_BLAS(tlas.get(), &it->second);
         } 
         // create_device_buffer(current_instance.buffer, current_instance.memory, &object.transformation, sizeof(glm::mat4), 
         //                                                                                     vk::BufferUsageFlagBits::eVertexBuffer);
-        current_instance.mesh_buffer = &it->second;
-        current_instance.transformation = object.transformation;
-        objects.push_back(current_instance);
+        // current_instance.mesh_buffer = &it->second;
+        // current_instance.transformation = object.transformation;
+        // objects.push_back(current_instance);
+        tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.transformation));
     }
 
-    create_TLAS();
+    create_TLAS(tlas.get());
 }
 
 void Renderer::create_sbt() {
@@ -373,7 +433,17 @@ void Renderer::create_sbt() {
     auto [rgen_buffer, rgen_alloc] = create_device_buffer_with_data(handle_storage.data(), handle_size_aligned, usage);
     auto [miss_buffer, miss_alloc] = create_device_buffer_with_data(handle_storage.data() + handle_size_aligned, handle_size_aligned, usage);
     auto [hit_buffer, hit_alloc] = create_device_buffer_with_data(handle_storage.data() + handle_size_aligned*2, handle_size_aligned, usage);
+    // Debuggin: print sbt information
+    std::cout << "handle_size: " << handle_size << std::endl;
+    std::cout << "handle_alignment: " << handle_alignment << std::endl;
+    std::cout << "handle_size_aligned: " << handle_size_aligned << std::endl;
+    std::cout << "sbt_size: " << sbt_size << std::endl;
+    std::cout << "group_count: " << group_count << std::endl;
 
+    // Debuggin: print offsets of the handles
+    // std::cout << "Raygen handle offset: " << (void*)handle_storage.data() << std::endl;
+    // std::cout << "Miss handle offset: " << (void*)(handle_storage.data() + handle_size_aligned) << std::endl;
+    // std::cout << "Hit handle offset: " << (void*)(handle_storage.data() + handle_size_aligned*2) << std::endl;
 
     rgen_sbt.buffer = rgen_buffer;
     rgen_sbt.allocation = rgen_alloc;

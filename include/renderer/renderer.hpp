@@ -10,6 +10,7 @@
 #include <renderer/frame_constants.hpp>
 #include <renderer/frame_data.hpp>
 #include <renderer/rt_pipeline.hpp>
+#include <renderer/acceleration_structure.hpp>
 
 #include <unordered_map>
 #include <memory>
@@ -24,57 +25,10 @@ struct ShaderBindingTable {
     vk::StridedDeviceAddressRegionKHR region;
 };
 
-struct StagingBuffer {
-    void* data;
-    
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
-};
 
-struct Camera {
-    glm::mat4 view;
-    glm::mat4 projection;
-};
 
-struct UnifromBuffer {
-    Camera matrices;
 
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
 
-    StagingBuffer map;
-};
-
-struct MeshBuffer {
-    vk::Buffer vertex_buffer;
-    vk::DeviceMemory vertex_memory;
-
-    vk::Buffer index_buffer;
-    vk::DeviceMemory index_memory;
-    
-    uint32_t size;
-};
-
-struct InstanceBuffer {
-    MeshBuffer* mesh_buffer;
-    glm::mat4 transformation;
-};
-
-struct AccelerationBuffer {
-    vk::AccelerationStructureKHR as;
-
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
-    vk::DeviceAddress as_addr;
-};
-
-struct TopAccelerationBuffer {
-    AccelerationBuffer as;
-
-    // needs a separated buffer for instances
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
-};
 
 class Renderer {
     private:
@@ -102,8 +56,8 @@ class Renderer {
     vk::SurfaceKHR surface;
     std::unique_ptr<Swapchain> swapchain;
 
-    std::unordered_map<const Mesh*, MeshBuffer> meshes{};
-    std::vector<InstanceBuffer> objects{};
+    // std::unordered_map<const Mesh*, MeshBuffer> meshes{};
+    // std::vector<InstanceBuffer> objects{};
 
     Command_Pool pool;
     vk::CommandPool general_command_pool;
@@ -111,7 +65,7 @@ class Renderer {
 
     Scene scene;
 
-    UnifromBuffer camera;
+    // UnifromBuffer camera;
 
     ShaderBindingTable rgen_sbt;
     ShaderBindingTable miss_sbt;
@@ -119,8 +73,9 @@ class Renderer {
     ShaderBindingTable callable_sbt;
 
 
-    std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
-    TopAccelerationBuffer tlas;
+    // std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
+    // TopAccelerationBuffer tlas;
+    std::unique_ptr<TopLevelAccelerationStructure> tlas;
 
     VmaAllocator allocator;
     std::shared_ptr<CommonFrameData> common_data;
@@ -234,8 +189,12 @@ class Renderer {
         acc_features.accelerationStructure = true;
         acc_features.pNext = &address_features;
 
+        // nv ray tracing validation
+        vk::PhysicalDeviceRayTracingValidationFeaturesNV validation_features;
+        validation_features.pNext = &acc_features;
+
         vk::PhysicalDeviceFeatures2 device_features2;
-        device_features2.pNext = &acc_features;
+        device_features2.pNext = &validation_features;
 
         vk::DeviceCreateInfo device_create_info(
             {},
@@ -277,10 +236,6 @@ class Renderer {
         allocator_info.instance = instance;
         allocator_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         vmaCreateAllocator(&allocator_info, &allocator);
-
-        // create_pipeline();
-        create_rt_pipeline();
-        create_sbt();
 
     }
 
@@ -339,18 +294,17 @@ class Renderer {
     void create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::DeviceSize size, vk::BufferUsageFlags usage, 
                                 vk::MemoryPropertyFlags properties, vk::SharingMode mode = vk::SharingMode::eExclusive);
     
-    void create_mesh_buffer(const Mesh* mesh);
+    void create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Mesh* mesh);
 
     vk::DeviceAddress get_device_address(vk::Buffer buffer) {
         vk::BufferDeviceAddressInfo info{};
         info.buffer = buffer;
-        return device.getBufferAddress(&info);
+        return device.getBufferAddress(&info, dl);
     }
     
-    void create_ubo();
+    // void create_ubo();
 
     void create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* vertices, vk::DeviceSize size, vk::BufferUsageFlags usage);
-
 
     std::pair<vk::Buffer, VmaAllocation> create_staging_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
         vk::Buffer staging_buffer;
@@ -383,16 +337,12 @@ class Renderer {
         return {staging_buffer, staging_allocation};
     }
 
-    std::pair<vk::Buffer, VmaAllocation> create_device_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
-        auto [staging_buffer, staging_allocation] = create_staging_buffer_with_data(data, size, usage);
-        std::cout << "Successfully created staging buffer" << std::endl;
-
-        // Create a device-local buffer for the data
+    std::pair<vk::Buffer, VmaAllocation> create_device_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage) {
         vk::Buffer buffer;
         VmaAllocation allocation;
         vk::BufferCreateInfo buffer_info;
         buffer_info.size = size;
-        buffer_info.usage = usage | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_info.usage = usage;
         buffer_info.sharingMode = vk::SharingMode::eExclusive;
 
         VmaAllocationCreateInfo alloc_info{};
@@ -404,12 +354,26 @@ class Renderer {
             std::cout << "Failed to create device buffer" << std::endl;
             throw std::runtime_error("Failed to create device buffer");
         }
+
+        return {buffer, allocation};
+    }
+
+    std::pair<vk::Buffer, VmaAllocation> create_device_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
+        auto [staging_buffer, staging_allocation] = create_staging_buffer_with_data(data, size, usage);
+        std::cout << "Successfully created staging buffer" << std::endl;
+
+        // Create a device-local buffer for the data
+        auto [buffer, allocation] = create_device_buffer(size,  usage | vk::BufferUsageFlagBits::eTransferDst);
+ 
         // Copy the data from the staging buffer to the device-local buffer
         // auto & command_pool = common_data->get_command_pool();
         auto cmd_buffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
         vk::BufferCopy copy_region;
         copy_region.size = size;
-        cmd_buffer.begin(vk::CommandBufferBeginInfo());
+        auto begin_info = vk::CommandBufferBeginInfo();
+        begin_info.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+
+        cmd_buffer.begin(begin_info);
         cmd_buffer.copyBuffer(staging_buffer, buffer, 1, &copy_region);
         cmd_buffer.end();
         auto q = device.getQueue(graphics_queue_family_index, 0);
@@ -425,9 +389,9 @@ class Renderer {
         return {buffer, allocation};
     }
 
-    void create_BLAS(const MeshBuffer* mesh);
+    void create_BLAS(TopLevelAccelerationStructure * tlas, const MeshBuffer* mesh);
 
-    void create_TLAS();
+    void create_TLAS(TopLevelAccelerationStructure * tlas);
 
     public:
 
@@ -439,6 +403,11 @@ class Renderer {
 
         swapchain = std::make_unique<Swapchain>(physical_device, device, window_system->get(window), surface);
         
+        // create_pipeline();
+        create_rt_pipeline();
+        create_sbt();
+        load_scene("sample/Cube.gltf");
+
         frame_setup();
 
         std::cout << "Renderer created" << std::endl;
@@ -469,6 +438,7 @@ class Renderer {
             frame_data.emplace_back(std::make_unique<FrameData>(common_data, r_width, r_height, i));
         }
 
+        /*
         // Scene specific stuff?
         // Create an empty acceleration structure with buffer using VMA
         vk::BufferCreateInfo buffer_info{};
@@ -492,6 +462,73 @@ class Renderer {
 
         common_data->tlas = device.createAccelerationStructureKHR(acc_create_info, nullptr, dl);
         
+        // Build empty TLAS
+        {
+            // vk::AccelerationStructureGeometryInstancesDataKHR instancesData{};
+            // instancesData.data.deviceAddress = get_device_address(instanceBuffer);
+            // instancesData.arrayOfPointers = VK_FALSE;
+            
+            // vk::AccelerationStructureGeometryKHR geometry{};
+            // geometry.geometryType = vk::GeometryTypeKHR::eInstances;
+            // geometry.geometry.instances = instancesData;
+            // geometry.flags = vk::GeometryFlagBitsKHR::eOpaque;
+            
+            vk::AccelerationStructureBuildGeometryInfoKHR buildInfo{};
+            buildInfo.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+            buildInfo.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+            buildInfo.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
+            buildInfo.srcAccelerationStructure = nullptr;
+            buildInfo.dstAccelerationStructure = common_data->tlas;
+            buildInfo.geometryCount = 0;
+            buildInfo.pGeometries = nullptr;
+
+            vk::AccelerationStructureBuildSizesInfoKHR sizeInfo = device.getAccelerationStructureBuildSizesKHR(
+                vk::AccelerationStructureBuildTypeKHR::eDevice,
+                buildInfo,
+                {},
+                dl
+            );
+            
+            auto [scratchBuffer, scratchAllocation] = create_device_buffer_with_data(
+                nullptr,
+                sizeInfo.buildScratchSize,
+                vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress
+            );
+            
+            buildInfo.scratchData.deviceAddress = get_device_address(scratchBuffer);
+
+
+            vk::AccelerationStructureBuildRangeInfoKHR rangeInfo{};
+            rangeInfo.primitiveCount = static_cast<uint32_t>(0);
+            rangeInfo.primitiveOffset = 0;
+            rangeInfo.firstVertex = 0;
+            rangeInfo.transformOffset = 0;
+
+            const vk::AccelerationStructureBuildRangeInfoKHR* pRangeInfo = &rangeInfo;
+
+            auto cmdBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
+                general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
+
+            cmdBuffer.begin(vk::CommandBufferBeginInfo{});
+            cmdBuffer.buildAccelerationStructuresKHR(1, &buildInfo, &pRangeInfo, dl);
+            cmdBuffer.end();
+
+            auto queue = device.getQueue(graphics_queue_family_index, 0);
+            vk::SubmitInfo submitInfo{};
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &cmdBuffer;
+            queue.submit(1, &submitInfo, nullptr);
+            queue.waitIdle();
+
+            vmaDestroyBuffer(allocator, scratchBuffer, scratchAllocation);
+            // vmaDestroyBuffer(allocator, instanceBuffer, instanceAllocation);
+        }
+        */
+
+        // Use loaded tlas
+        // common_data->tlas = tlas.as.as;
+        // common_data->tlas_buffer = tlas.buffer;
+
         // Create descriptor sets for the pipeline
 
         for (int i = 0; i < swapchain->get_num_images(); i++) {
@@ -514,7 +551,7 @@ class Renderer {
             acc_desc_write.descriptorCount = 1;
             vk::WriteDescriptorSetAccelerationStructureKHR  acc_list;
             acc_list.accelerationStructureCount = 1;
-            acc_list.pAccelerationStructures = &common_data->tlas;
+            acc_list.pAccelerationStructures = &tlas->structure;
             acc_desc_write.pNext = &acc_list;
 
             vk::WriteDescriptorSet img_desc_write;
@@ -580,7 +617,7 @@ class Renderer {
         // std::cout << "Recorded command buffer" << std::endl;
 
         // Clear rt_image with red (for testing)
-        vk::ClearColorValue clear_color(std::array<float, 4>{1.0f, 0.0f, 0.0f, 1.0f});
+        vk::ClearColorValue clear_color(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
         vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
         vk::ImageMemoryBarrier barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), nullptr, nullptr, barrier);

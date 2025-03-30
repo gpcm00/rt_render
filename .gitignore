@@ -52,3 +52,5 @@ misc/test/geometry
 misc/test/stb/
 misc/test/glTF-Sample-Assets/
 misc/test/tinyobjloader/
+
+sample/
