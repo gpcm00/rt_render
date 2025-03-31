@@ -10,7 +10,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 
+
 #include "geometry.hpp"
+
+namespace fs = std::filesystem;
 
 static glm::mat4 get_node_transform(const tinygltf::Node& node) {
     glm::mat4 transform = glm::mat4(1.0f); // Identity matrix
@@ -129,6 +132,10 @@ Scene::Scene(const std::string& filename)  {
     tinygltf::Model model;
     std::string err, warn;
 
+    fs::path base_dir = fs::path(filename).parent_path();
+
+    std::cout<< base_dir.string() << std::endl;
+
     bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename); 
 
     if (!warn.empty()) std::cout << "Warning: " << warn << std::endl;
@@ -145,36 +152,73 @@ Scene::Scene(const std::string& filename)  {
         size_t n_vertices = 0;
         size_t n_indices = 0;
 
+        geometries[mesh_i].texture_index = -1;
         for (auto& primitive : mesh.primitives) {
             n_vertices += populate_vertex_data(model, primitive, geometries[mesh_i].vertices);
             n_indices += populate_index_data(model, primitive, geometries[mesh_i].indices);
+            if (primitive.material != geometries[mesh_i].texture_index) {
+                geometries[mesh_i].texture_index = primitive.material;
+            }
         }
 
         std::cout << "Mesh["<< mesh_i << "]:\n";
-        std::cout << "\tVertices:" << n_vertices << std::endl;
-        std::cout << "\tIndices:" << n_indices << std::endl;
+        std::cout << "\tName: " << model.materials[geometries[mesh_i].texture_index].name << std::endl;
+        std::cout << "\tVertices: " << n_vertices << std::endl;
+        std::cout << "\tIndices: " << n_indices << std::endl;
 
         mesh_i++;
     }
 
-    std::cout << "Number of meshes: " << mesh_i << std::endl;
-
     objects.resize(model.nodes.size());
     size_t obj_i = 0;
     for (auto& node : model.nodes) {
+        if (node.mesh == -1)
+            continue;
         objects[obj_i].mesh = &geometries[node.mesh];
         objects[obj_i].transformation = get_node_transform(node);
+        uint32_t i = geometries[node.mesh].texture_index;
 
         obj_i++;
     }
 
-    std::cout << "Number of objects: " << obj_i << std::endl;
 
+    for (auto& material : model.materials) {
+        materials.push_back(Material(material, model.images.data(), base_dir));
+
+        // std::cout << material.name << std::endl;
+        // Material new_material = Material(material, model.images.data(), base_dir);
+        // std::cout << "Indexes" << std::endl;
+        // std::cout << material.pbrMetallicRoughness.baseColorTexture.index << std::endl;
+        // std::cout << material.pbrMetallicRoughness.metallicRoughnessTexture.index << std::endl;
+        // std::cout << material.normalTexture.index << std::endl;
+        // std::cout << material.emissiveTexture.index << std::endl;
+        // std::cout << material.occlusionTexture.index << std::endl;
+
+        // std::cout << "Metalic Factor: " << std::endl;;
+        // std::cout << material.pbrMetallicRoughness.metallicFactor << std::endl;
+        // std::cout << material.pbrMetallicRoughness.roughnessFactor << std::endl;
+        // std::cout << "Alpha cutoff: " << material.alphaCutoff << std::endl;
+        // std::cout << "Alpha mode: " << material.alphaMode << std::endl;
+        // std::cout << "Base Color: (" 
+        //             << material.pbrMetallicRoughness.baseColorFactor[0] << ", "
+        //             << material.pbrMetallicRoughness.baseColorFactor[1] << ", "
+        //             << material.pbrMetallicRoughness.baseColorFactor[2] << ", "
+        //             << material.pbrMetallicRoughness.baseColorFactor[3] << ")\n";
+        // for (auto& extension : material.extensions) {
+        //     std::cout << extension.first << ": " << extension.second.Get("transmissionFactor").Get<double>() << std::endl;
+        // }
+        // std::cout << "Emissive Factor: \n";
+        // for (auto& emi : material.emissiveFactor) {
+        //     std::cout << emi << std::endl;
+        // }
+
+        
+    }
+
+    std::cout << "Number of meshes: " << mesh_i << std::endl;
+    std::cout << "Number of objects: " << obj_i << std::endl;
     std::cout << "Number of images: " << model.images.size() << std::endl;
 
-    for (auto& image : model.images) {
-        std::cout << image.name << ": " << image.uri << std::endl;
-    }
 }
 
 int main(int argc, char** argv) {
@@ -191,8 +235,8 @@ int main(int argc, char** argv) {
         throw std::runtime_error("Unable to load test pointer list");
     }
 
-    std::cout << test_meshes.size() << std::endl;
-    std::cout << test_meshes.empty() << std::endl;
+    // std::cout << test_meshes.size() << std::endl;
+    // std::cout << test_meshes.empty() << std::endl;
 
     return 0;
 }

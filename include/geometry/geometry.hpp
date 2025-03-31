@@ -10,9 +10,121 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <iostream>
 #include <vector>
 #include <string>
 #include <cstddef>
+#include <filesystem>
+#include <tiny_gltf.h>
+#include <renderer/vulkan.hpp>
+
+
+class TextureMap {
+
+    uint8_t* map = nullptr;
+    int w = 0, h = 0, c = 0;
+    
+    public:
+    enum TextureType {
+        baseColorTexture,
+        normalTexture,
+        emissiveTexture,
+        occlusionTexture,
+        metallicRoughness,
+    };
+    
+    TextureMap() = default;
+    TextureMap(std::string file_path, TextureType texture_type) : type(texture_type) {
+        map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
+    }
+
+    uint8_t* data() { return map; }
+    int height() { return h; } 
+    int width() { return w; } 
+    int channels() { return c; } 
+
+    void free_texture_map() {
+        stbi_image_free(map);
+    }
+
+    private:
+    TextureType type;
+};
+
+class Material {
+    std::string name;
+    std::filesystem::path dir;
+
+    double base_color[4];
+    double emissive[3];
+    double metallic;
+    double roughness;
+    double transmission;
+
+    std::vector<TextureMap> textures;
+
+    public:
+    Material() = default;
+
+    Material(tinygltf::Material& material, tinygltf::Image* images, std::filesystem::path base_directory) : dir(base_directory) {
+        name = material.name;
+
+        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(), 4*sizeof(double));
+        memcpy(emissive, material.emissiveFactor.data(), 3*sizeof(double));
+
+        roughness = material.pbrMetallicRoughness.roughnessFactor;
+        metallic = material.pbrMetallicRoughness.metallicFactor;
+        
+        const auto& it = material.extensions.find("KHR_materials_transmission");
+        if (it != material.extensions.end()) {
+            transmission = it->second.Get("transmissionFactor").Get<double>();
+        } else {
+            transmission = 0;
+        }
+
+        std::cout<< name << ": \n";
+        if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
+            uint32_t i = material.pbrMetallicRoughness.baseColorTexture.index;
+            std::string file_path = (dir / images[i].uri).string();
+            textures.push_back(TextureMap(file_path, TextureMap::TextureType::baseColorTexture));
+            std::cout << "\tBase color: " << images[i].uri << std::endl;
+        }
+
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
+            uint32_t i = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            std::string file_path = (dir / images[i].uri).string();
+            textures.push_back(TextureMap(file_path, TextureMap::TextureType::metallicRoughness));
+            std::cout << "\tMetallic Roughness Texture: " << images[i].uri << std::endl;
+        }
+
+        if (material.normalTexture.index  >= 0) {
+            uint32_t i = material.normalTexture.index;
+            std::string file_path = (dir / images[i].uri).string();
+            textures.push_back(TextureMap(file_path, TextureMap::TextureType::normalTexture));
+            std::cout << "\tNormal Texture: " << images[i].uri << std::endl;
+        }
+
+        if (material.emissiveTexture.index  >= 0) {
+            uint32_t i = material.emissiveTexture.index;
+            std::string file_path = (dir / images[i].uri).string();
+            textures.push_back(TextureMap(file_path, TextureMap::TextureType::emissiveTexture));
+            std::cout << "\tEmissive Texture: " << images[i].uri << std::endl;
+        }
+
+        if (material.occlusionTexture.index  >= 0) {
+            uint32_t i = material.occlusionTexture.index;
+            std::string file_path = (dir / images[i].uri).string();
+            textures.push_back(TextureMap(file_path, TextureMap::TextureType::occlusionTexture));
+            std::cout << "\tOcclusion Texture: " << images[i].uri << std::endl;
+        }
+    }
+
+    void cleanup() {
+        for (auto& texture : textures) {
+            texture.free_texture_map();
+        }
+    }
+};
 
 struct Vertex {
     glm::vec3 position;
@@ -63,6 +175,8 @@ struct Vertex {
 struct Mesh {
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
+
+    int texture_index;
 };
 
 struct Object {
@@ -74,6 +188,8 @@ class Scene {
     private:
     std::vector<Mesh> geometries;
     std::vector<Object> objects;
+    std::vector<Material> materials;
+
 
     public:
     Scene() = default;

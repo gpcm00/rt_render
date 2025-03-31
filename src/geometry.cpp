@@ -9,6 +9,8 @@
 
 #include <geometry/geometry.hpp>
 
+namespace fs = std::filesystem;
+
 static glm::mat4 get_node_transform(const tinygltf::Node& node) {
     glm::mat4 transform = glm::mat4(1.0f); // Identity matrix
 
@@ -87,7 +89,6 @@ static size_t populate_vertex_data(tinygltf::Model& model, const tinygltf::Primi
         } else {
             vertex.uvmap = glm::vec2(0.0f);
         }
-
         if (colorData != nullptr) {
             vertex.color = glm::vec3(colorData[i * 3], colorData[i * 3 + 1], colorData[i * 3 + 2]);
         } else {
@@ -126,6 +127,8 @@ Scene::Scene(const std::string& filename)  {
     tinygltf::Model model;
     std::string err, warn;
 
+    fs::path base_dir = fs::path(filename).parent_path();
+
     bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename); 
 
     if (!warn.empty()) std::cout << "Warning: " << warn << std::endl;
@@ -142,9 +145,13 @@ Scene::Scene(const std::string& filename)  {
         size_t n_vertices = 0;
         size_t n_indices = 0;
 
+        geometries[mesh_i].texture_index = -1;
         for (auto& primitive : mesh.primitives) {
             n_vertices += populate_vertex_data(model, primitive, geometries[mesh_i].vertices);
             n_indices += populate_index_data(model, primitive, geometries[mesh_i].indices);
+            if (primitive.material != geometries[mesh_i].texture_index) {
+                geometries[mesh_i].texture_index = primitive.material;
+            }
         }
 
         std::cout << "Mesh["<< mesh_i << "]:\n";
@@ -154,21 +161,25 @@ Scene::Scene(const std::string& filename)  {
         mesh_i++;
     }
 
-    std::cout << "Number of meshes: " << mesh_i << std::endl;
-
-    // objects.resize(model.nodes.size());
     objects.clear();
     size_t obj_i = 0;
     for (auto& node : model.nodes) {
         if (node.mesh >= 0) {
-        // objects[obj_i].mesh = &geometries[node.mesh];
-        // objects[obj_i].transformation = get_node_transform(node);
-        objects.push_back({&geometries[node.mesh], get_node_transform(node)});
-        obj_i++;
+            objects.push_back({&geometries[node.mesh], get_node_transform(node)});
+            obj_i++;
         }
     }
 
+    size_t mat_i = 0;
+    for (auto& material : model.materials) {
+        materials.push_back(Material(material, model.images.data(), base_dir));
+        mat_i++;
+    }
+
+    std::cout << "Number of meshes: " << mesh_i << std::endl;
     std::cout << "Number of objects: " << obj_i << std::endl;
+    std::cout << "Number of materials: " << mat_i << std::endl;
+
 }
 
 // int main(int argc, char** argv) {
