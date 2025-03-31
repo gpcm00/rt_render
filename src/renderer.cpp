@@ -158,24 +158,18 @@ void Renderer::create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Mes
                                vk::BufferUsageFlagBits::eShaderDeviceAddress;
 
     // Vertex buffer
-    // const void* data = mesh->vertices.data();
-    // vk::DeviceSize size = mesh->vertices.size() * sizeof(Vertex);
-    // create_device_buffer(mesh_buffer.vertex_buffer, mesh_buffer.vertex_memory, data, size, flags);
     auto [vertex_buffer, vertex_allocation] 
         = create_device_buffer_with_data(mesh->vertices.data(), mesh->vertices.size() * sizeof(Vertex), flags);
     mesh_buffer.vertex_buffer = vertex_buffer;
     mesh_buffer.vertex_allocation = vertex_allocation;
     // Index buffer
-    // data =  mesh->indices.data();
-    // size = mesh->indices.size() * sizeof(uint32_t);
+
     auto [index_buffer, index_allocation] = 
         create_device_buffer_with_data(mesh->indices.data(), mesh->indices.size() * sizeof(uint32_t), flags);
     mesh_buffer.index_buffer = index_buffer;
     mesh_buffer.index_allocation = index_allocation;
-    // create_device_buffer(mesh_buffer.vertex_buffer, mesh_buffer.vertex_memory, data, size, flags);
-    // mesh_buffer.size = size;
 
-    mesh_buffer.size = mesh->indices.size() * sizeof(uint32_t);
+    mesh_buffer.num_indices = mesh->indices.size();
     tlas->meshes[mesh] = mesh_buffer;
 }
 
@@ -200,7 +194,7 @@ void Renderer::create_BLAS(TopLevelAccelerationStructure * tlas, const MeshBuffe
     info.geometryCount = 1;
     info.pGeometries = &geometry;
 
-    const uint32_t primitive_count = mesh->size / 3;
+    const uint32_t primitive_count = mesh->num_indices / 3;// mesh->size / 3;
     vk::AccelerationStructureBuildSizesInfoKHR size_info{};
     size_info = device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice, info, primitive_count, dl);
 
@@ -222,6 +216,9 @@ void Renderer::create_BLAS(TopLevelAccelerationStructure * tlas, const MeshBuffe
     // create_buffer(scratch.buffer, scratch.memory, size_info.accelerationStructureSize, usage, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);    
     auto [scratch_buffer, scratch_allocation] = 
         create_device_buffer(size_info.buildScratchSize, usage);
+
+    // auto [scratch_buffer, scratch_allocation] = 
+    //     create_staging_buffer_with_data(nullptr, size_info.buildScratchSize, usage);
 
     vk::AccelerationStructureBuildGeometryInfoKHR scratch_info{};
     scratch_info.type = vk::AccelerationStructureTypeKHR::eBottomLevel;

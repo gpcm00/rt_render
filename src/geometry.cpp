@@ -156,13 +156,16 @@ Scene::Scene(const std::string& filename)  {
 
     std::cout << "Number of meshes: " << mesh_i << std::endl;
 
-    objects.resize(model.nodes.size());
+    // objects.resize(model.nodes.size());
+    objects.clear();
     size_t obj_i = 0;
     for (auto& node : model.nodes) {
-        objects[obj_i].mesh = &geometries[node.mesh];
-        objects[obj_i].transformation = get_node_transform(node);
-
+        if (node.mesh >= 0) {
+        // objects[obj_i].mesh = &geometries[node.mesh];
+        // objects[obj_i].transformation = get_node_transform(node);
+        objects.push_back({&geometries[node.mesh], get_node_transform(node)});
         obj_i++;
+        }
     }
 
     std::cout << "Number of objects: " << obj_i << std::endl;

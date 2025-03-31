@@ -32,7 +32,8 @@ struct MeshBuffer {
     vk::Buffer index_buffer;
     VmaAllocation index_allocation;
     
-    uint32_t size;
+    uint32_t num_indices;
+    // uint32_t index_buffer_size;
 };
 
 // struct InstanceBuffer {

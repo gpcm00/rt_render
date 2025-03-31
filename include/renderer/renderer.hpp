@@ -326,11 +326,12 @@ class Renderer {
         }
 
         // Map the buffer and copy the data
-        void* mapped_data;
-        vmaMapMemory(allocator, staging_allocation, &mapped_data);
-        memcpy(mapped_data, data, static_cast<size_t>(size));
-        vmaUnmapMemory(allocator, staging_allocation);
-
+        if (data != nullptr) {
+            void* mapped_data;
+            vmaMapMemory(allocator, staging_allocation, &mapped_data);
+            memcpy(mapped_data, data, static_cast<size_t>(size));
+            vmaUnmapMemory(allocator, staging_allocation);
+        }
         return {staging_buffer, staging_allocation};
     }
 
@@ -403,6 +404,8 @@ class Renderer {
         // create_pipeline();
         create_rt_pipeline();
         create_sbt();
+        // load_scene("sample/Duck.gltf");
+        // load_scene("sample/AntiqueCamera/glTF/AntiqueCamera.gltf");
         load_scene("sample/Cube.gltf");
 
         frame_setup();
