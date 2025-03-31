@@ -20,7 +20,6 @@
 
 
 class TextureMap {
-
     uint8_t* map = nullptr;
     int w = 0, h = 0, c = 0;
     
@@ -34,7 +33,7 @@ class TextureMap {
     };
     
     TextureMap() = default;
-    TextureMap(std::string file_path, TextureType texture_type) : type(texture_type) {
+    TextureMap(std::string file_path, TextureType texture_type) : texture_type(texture_type) {
         map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
     }
 
@@ -47,8 +46,10 @@ class TextureMap {
         stbi_image_free(map);
     }
 
+    TextureType type() { return texture_type; }
+
     private:
-    TextureType type;
+    TextureType texture_type;
 };
 
 class Material {
@@ -69,8 +70,8 @@ class Material {
     Material(tinygltf::Material& material, tinygltf::Image* images, std::filesystem::path base_directory) : dir(base_directory) {
         name = material.name;
 
-        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(), 4*sizeof(double));
-        memcpy(emissive, material.emissiveFactor.data(), 3*sizeof(double));
+        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(), sizeof(base_color));
+        memcpy(emissive, material.emissiveFactor.data(), sizeof(emissive));
 
         roughness = material.pbrMetallicRoughness.roughnessFactor;
         metallic = material.pbrMetallicRoughness.metallicFactor;
@@ -123,6 +124,14 @@ class Material {
         for (auto& texture : textures) {
             texture.free_texture_map();
         }
+    }
+
+    auto begin() {
+        return textures.begin();
+    }
+
+    auto end() {
+        return textures.end();
     }
 };
 
@@ -194,6 +203,7 @@ class Scene {
     public:
     Scene() = default;
     Scene(const std::string& filename); 
+    ~Scene() { for (auto material : materials) material.cleanup(); }
 
     bool empty() {
         return geometries.empty() || objects.empty();

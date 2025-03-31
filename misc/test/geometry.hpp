@@ -135,6 +135,14 @@ class Material {
             texture.free_texture_map();
         }
     }
+
+    auto begin() {
+        return textures.begin();
+    }
+
+    auto end() {
+        return textures.end();
+    }
 };
 
 struct Vertex {
