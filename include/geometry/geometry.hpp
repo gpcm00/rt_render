@@ -7,7 +7,8 @@
 // #define STB_IMAGE_WRITE_IMPLEMENTATION 
 // #endif
 
-#define GLFW_INCLUDE_VULKAN
+#include <renderer/vulkan.hpp>
+
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <iostream>
@@ -16,7 +17,6 @@
 #include <cstddef>
 #include <filesystem>
 #include <tiny_gltf.h>
-#include <renderer/vulkan.hpp>
 
 
 class TextureMap {
@@ -33,18 +33,14 @@ class TextureMap {
     };
     
     TextureMap() = default;
-    TextureMap(std::string file_path, TextureType texture_type) : texture_type(texture_type) {
-        map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
-    }
+    TextureMap(std::string file_path, TextureType texture_type);
 
     uint8_t* data() { return map; }
     int height() { return h; } 
     int width() { return w; } 
     int channels() { return c; } 
 
-    void free_texture_map() {
-        stbi_image_free(map);
-    }
+    void free_texture_map();
 
     TextureType type() { return texture_type; }
 

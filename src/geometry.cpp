@@ -1,15 +1,27 @@
-#define STB_IMAGE_WRITE_IMPLEMENTATION  
+// #define STB_IMAGE_WRITE_IMPLEMENTATION  
 #include <iostream>
 #include <cstdlib>
-#include <tiny_gltf.h>
+// #include <tiny_gltf.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 
+#define STB_IMAGE_IMPLEMENTATION  
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define TINYGLTF_IMPLEMENTATION
+
 #include <geometry/geometry.hpp>
 
 namespace fs = std::filesystem;
+
+TextureMap::TextureMap(std::string file_path, TextureType texture_type) : texture_type(texture_type) {
+    map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
+}
+
+void TextureMap::free_texture_map() {
+    stbi_image_free(map);
+}
 
 static glm::mat4 get_node_transform(const tinygltf::Node& node) {
     glm::mat4 transform = glm::mat4(1.0f); // Identity matrix
