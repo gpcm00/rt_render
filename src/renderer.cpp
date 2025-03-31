@@ -419,20 +419,12 @@ void Renderer::create_sbt() {
 
     const uint32_t handle_size = rt_properties.shaderGroupHandleSize;
     const uint32_t handle_alignment = rt_properties.shaderGroupHandleAlignment;
-    const uint32_t handle_size_aligned = (handle_size+handle_alignment-1)&~(handle_alignment-1);
+    const uint32_t handle_size_aligned = (handle_size+(handle_alignment-1))&~(handle_alignment-1);
     const uint32_t group_count = 3;
-    const uint32_t sbt_size = group_count * handle_size_aligned;
+    const uint32_t sbt_size = group_count * handle_size_aligned*2;
     const vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress;
 
 
-    std::vector<uint8_t> handle_storage(sbt_size);
-
-    device.getRayTracingShaderGroupHandlesKHR(pipeline->pipeline, 0, group_count, sbt_size, handle_storage.data(), dl);
-
-
-    auto [rgen_buffer, rgen_alloc] = create_device_buffer_with_data(handle_storage.data(), handle_size_aligned, usage);
-    auto [miss_buffer, miss_alloc] = create_device_buffer_with_data(handle_storage.data() + handle_size_aligned, handle_size_aligned, usage);
-    auto [hit_buffer, hit_alloc] = create_device_buffer_with_data(handle_storage.data() + handle_size_aligned*2, handle_size_aligned, usage);
     // Debuggin: print sbt information
     std::cout << "handle_size: " << handle_size << std::endl;
     std::cout << "handle_alignment: " << handle_alignment << std::endl;
@@ -440,30 +432,35 @@ void Renderer::create_sbt() {
     std::cout << "sbt_size: " << sbt_size << std::endl;
     std::cout << "group_count: " << group_count << std::endl;
 
-    // Debuggin: print offsets of the handles
-    // std::cout << "Raygen handle offset: " << (void*)handle_storage.data() << std::endl;
-    // std::cout << "Miss handle offset: " << (void*)(handle_storage.data() + handle_size_aligned) << std::endl;
-    // std::cout << "Hit handle offset: " << (void*)(handle_storage.data() + handle_size_aligned*2) << std::endl;
+    std::vector<uint8_t> handle_storage(sbt_size);
 
-    rgen_sbt.buffer = rgen_buffer;
-    rgen_sbt.allocation = rgen_alloc;
-    rgen_sbt.region.deviceAddress = get_device_address(rgen_sbt.buffer);
-    rgen_sbt.region.size = handle_size_aligned;
-    rgen_sbt.region.stride = handle_size_aligned;
+    device.getRayTracingShaderGroupHandlesKHR(pipeline->pipeline, 0, group_count, sbt_size, handle_storage.data(), dl);
 
-    miss_sbt.buffer = miss_buffer;
-    miss_sbt.allocation = miss_alloc;
-    miss_sbt.region.deviceAddress = get_device_address(miss_sbt.buffer);
-    miss_sbt.region.size = handle_size_aligned;
-    miss_sbt.region.stride = handle_size_aligned;
+    std::vector<uint8_t> sbt_data(sbt_size);
+    std::memcpy(sbt_data.data(), handle_storage.data(), handle_size_aligned); // raygen
+    std::memcpy(sbt_data.data() + handle_size_aligned*2, handle_storage.data() + handle_size_aligned, handle_size_aligned); // miss
+    std::memcpy(sbt_data.data() + handle_size_aligned*4, handle_storage.data() + handle_size_aligned*2, handle_size_aligned); // hit
 
-    hit_sbt.buffer = hit_buffer;
-    hit_sbt.allocation = hit_alloc;
-    hit_sbt.region.deviceAddress = get_device_address(hit_sbt.buffer);
-    hit_sbt.region.size = handle_size_aligned;
-    hit_sbt.region.stride = handle_size_aligned;
+    auto [sbt_buffer, sbt_allocation] = create_device_buffer_with_data(sbt_data.data(), sbt_data.size(), usage);
+    sbt.buffer = sbt_buffer;
+    sbt.allocation = sbt_allocation;
 
-    callable_sbt.region = vk::StridedDeviceAddressRegionKHR();
+    auto sbt_address = get_device_address(sbt.buffer);
+
+
+    sbt.raygen_region = vk::StridedDeviceAddressRegionKHR(
+        sbt_address, handle_size_aligned, handle_size_aligned
+    );
+
+    sbt.miss_region = vk::StridedDeviceAddressRegionKHR(
+        sbt_address + handle_size_aligned*2, handle_size_aligned, handle_size_aligned
+    );
+
+    sbt.hit_region = vk::StridedDeviceAddressRegionKHR(
+        sbt_address + handle_size_aligned*4, handle_size_aligned, handle_size_aligned
+    );
+
+    sbt.callable_region = vk::StridedDeviceAddressRegionKHR();
 
     std::cout << "Created SBTs" << std::endl;
 }

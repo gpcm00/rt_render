@@ -6,10 +6,10 @@
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
 // layout(location = 0) rayPayloadInEXT vec3 hitValue;
-layout(location = 0) rayPayloadInEXT vec4 hit_value;
+layout(location = 0) rayPayloadInEXT vec4 payload;
 // hitAttributeEXT vec3 attribs;
 
 void main()
 {
-  hit_value = vec4(0.0, 1.0, 0.0, 1.0);
+  payload = vec4(0.0, 1.0, 0.0, 1.0);
 }

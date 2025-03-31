@@ -15,17 +15,16 @@
 #include <unordered_map>
 #include <memory>
 
-// std::string rengen_module_path = "";
-// std::string miss_module_path = "";
-// std::string clhit_module_path = "";
 
-struct ShaderBindingTable {
+class ShaderBindingTable {
+    public:
     vk::Buffer buffer;
     VmaAllocation allocation;
-    vk::StridedDeviceAddressRegionKHR region;
+    vk::StridedDeviceAddressRegionKHR raygen_region;
+    vk::StridedDeviceAddressRegionKHR miss_region;
+    vk::StridedDeviceAddressRegionKHR hit_region;
+    vk::StridedDeviceAddressRegionKHR callable_region;
 };
-
-
 
 
 
@@ -67,10 +66,7 @@ class Renderer {
 
     // UnifromBuffer camera;
 
-    ShaderBindingTable rgen_sbt;
-    ShaderBindingTable miss_sbt;
-    ShaderBindingTable hit_sbt;
-    ShaderBindingTable callable_sbt;
+    ShaderBindingTable sbt;
 
 
     // std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
@@ -137,7 +133,8 @@ class Renderer {
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
             VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
+            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+            // VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME
         };
         float queue_priority = 1.0f;
         vk::DeviceQueueCreateInfo queue_create_info({}, 0, 1, &queue_priority);
@@ -438,96 +435,6 @@ class Renderer {
             frame_data.emplace_back(std::make_unique<FrameData>(common_data, r_width, r_height, i));
         }
 
-        /*
-        // Scene specific stuff?
-        // Create an empty acceleration structure with buffer using VMA
-        vk::BufferCreateInfo buffer_info{};
-        buffer_info.size = 1024; // Placeholder
-        buffer_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        buffer_info.sharingMode = vk::SharingMode::eExclusive;
-
-        VmaAllocationCreateInfo alloc_info{};
-        alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-        if (vmaCreateBuffer(allocator, reinterpret_cast<VkBufferCreateInfo*>(&buffer_info), &alloc_info, 
-        reinterpret_cast<VkBuffer*>(&common_data->tlas_buffer), &common_data->tlas_allocation, nullptr) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create TLAS buffer");
-        }
-
-        // Create empty TLAS
-        vk::AccelerationStructureCreateInfoKHR acc_create_info{};
-        acc_create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-        acc_create_info.size = 0; // No geometry yet
-        acc_create_info.buffer = common_data->tlas_buffer;
-
-        common_data->tlas = device.createAccelerationStructureKHR(acc_create_info, nullptr, dl);
-        
-        // Build empty TLAS
-        {
-            // vk::AccelerationStructureGeometryInstancesDataKHR instancesData{};
-            // instancesData.data.deviceAddress = get_device_address(instanceBuffer);
-            // instancesData.arrayOfPointers = VK_FALSE;
-            
-            // vk::AccelerationStructureGeometryKHR geometry{};
-            // geometry.geometryType = vk::GeometryTypeKHR::eInstances;
-            // geometry.geometry.instances = instancesData;
-            // geometry.flags = vk::GeometryFlagBitsKHR::eOpaque;
-            
-            vk::AccelerationStructureBuildGeometryInfoKHR buildInfo{};
-            buildInfo.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-            buildInfo.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
-            buildInfo.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
-            buildInfo.srcAccelerationStructure = nullptr;
-            buildInfo.dstAccelerationStructure = common_data->tlas;
-            buildInfo.geometryCount = 0;
-            buildInfo.pGeometries = nullptr;
-
-            vk::AccelerationStructureBuildSizesInfoKHR sizeInfo = device.getAccelerationStructureBuildSizesKHR(
-                vk::AccelerationStructureBuildTypeKHR::eDevice,
-                buildInfo,
-                {},
-                dl
-            );
-            
-            auto [scratchBuffer, scratchAllocation] = create_device_buffer_with_data(
-                nullptr,
-                sizeInfo.buildScratchSize,
-                vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress
-            );
-            
-            buildInfo.scratchData.deviceAddress = get_device_address(scratchBuffer);
-
-
-            vk::AccelerationStructureBuildRangeInfoKHR rangeInfo{};
-            rangeInfo.primitiveCount = static_cast<uint32_t>(0);
-            rangeInfo.primitiveOffset = 0;
-            rangeInfo.firstVertex = 0;
-            rangeInfo.transformOffset = 0;
-
-            const vk::AccelerationStructureBuildRangeInfoKHR* pRangeInfo = &rangeInfo;
-
-            auto cmdBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
-                general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
-
-            cmdBuffer.begin(vk::CommandBufferBeginInfo{});
-            cmdBuffer.buildAccelerationStructuresKHR(1, &buildInfo, &pRangeInfo, dl);
-            cmdBuffer.end();
-
-            auto queue = device.getQueue(graphics_queue_family_index, 0);
-            vk::SubmitInfo submitInfo{};
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &cmdBuffer;
-            queue.submit(1, &submitInfo, nullptr);
-            queue.waitIdle();
-
-            vmaDestroyBuffer(allocator, scratchBuffer, scratchAllocation);
-            // vmaDestroyBuffer(allocator, instanceBuffer, instanceAllocation);
-        }
-        */
-
-        // Use loaded tlas
-        // common_data->tlas = tlas.as.as;
-        // common_data->tlas_buffer = tlas.buffer;
 
         // Create descriptor sets for the pipeline
 
@@ -633,10 +540,10 @@ class Renderer {
                                       nullptr);
 
         cmd_buffer.traceRaysKHR(
-            &rgen_sbt.region, 
-            &miss_sbt.region,
-            &hit_sbt.region,
-            &callable_sbt.region,
+            &sbt.raygen_region, 
+            &sbt.miss_region,
+            &sbt.hit_region,
+            &sbt.callable_region,
             r_width, r_height, 1,
             dl
         );

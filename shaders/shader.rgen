@@ -35,10 +35,10 @@ void main()
         gl_RayFlagsOpaqueEXT, 
         0xFF, 
         0, // sbt offset
-        1, // sbt stride
+        0, // sbt stride
         0, // miss index
         ray_origin, // ray origin
-        0.0, // ray min
+        0.001, // ray min
         ray_direction, // ray direction, 
         1000.0, //ray max
         0 // ray payload
