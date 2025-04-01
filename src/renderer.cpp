@@ -383,6 +383,8 @@ void Renderer::load_scene(std::string file_path) {
     tlas = std::make_unique<TopLevelAccelerationStructure>(device, dl, 
         general_command_pool, graphics_queue_family_index);
     auto & meshes = tlas->meshes;
+    tlas->mesh_data.resize(scene->get_geometries().size());
+
     for (auto& object : *scene) {
         // InstanceBuffer current_instance;
         auto it = meshes.find(object.mesh);
@@ -395,16 +397,11 @@ void Renderer::load_scene(std::string file_path) {
                 throw std::runtime_error("Failed to create mesh buffer");
             }
 
-            if (tlas->mesh_data.size() !=  object.mesh->mesh_id) {
-                std::cout << "Mesh ID: " << object.mesh->mesh_id << std::endl;
-                std::cout << "Mesh data size: " << tlas->mesh_data.size() - 1 << std::endl;
-                throw std::runtime_error("Mesh ID mismatch");
-            }
 
-            tlas->mesh_data.push_back(MeshData{
+            tlas->mesh_data[object.mesh->mesh_id] = MeshData{
                 get_device_address(it->second.vertex_buffer),
                 get_device_address(it->second.index_buffer)
-            });
+            };
 
             create_BLAS(tlas.get(), &it->second);
         } 

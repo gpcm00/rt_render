@@ -224,4 +224,8 @@ class Scene {
     auto end() {
         return objects.end();
     }
+
+    std::vector<Mesh>& get_geometries() {
+        return geometries;
+    }
 };

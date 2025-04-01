@@ -50,7 +50,8 @@ void main()
 {
 
   // vec3 light_pos = vec3(-10.0, 10.0, 0.0); // test light position
-  vec3 light_pos = vec3(-4.0, 4.0, -2.0); // test light position
+//   vec3 light_pos = vec3(-4.0, 4.0, -2.0); // test light position
+  vec3 light_pos = vec3(-40.0, 40.0, -20.0); // test light position
 
   uint mesh_id = instances[gl_InstanceCustomIndexEXT].mesh_id;
   Mesh mesh = meshes[mesh_id];
