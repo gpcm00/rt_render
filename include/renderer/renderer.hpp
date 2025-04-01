@@ -65,6 +65,7 @@ class Renderer {
     std::unique_ptr<Scene> scene;
 
     // UnifromBuffer camera;
+    RTCamera camera;
 
     ShaderBindingTable sbt;
 
@@ -241,7 +242,8 @@ class Renderer {
         // Create descriptor set bindings
         std::vector<vk::DescriptorSetLayoutBinding> bindings = {
             {0, vk::DescriptorType::eAccelerationStructureKHR, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
-            {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}
+            {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
+            {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}
         };
 
         // Create pipeline
@@ -454,6 +456,8 @@ class Renderer {
             frame_data[i]->descriptor_sets[pipeline->descriptor_set_layout] = descriptor_set;
 
             // Fill descriptor set
+
+            // Acceleration Structure
             vk::WriteDescriptorSet acc_desc_write;
             acc_desc_write.dstSet = descriptor_set;
             acc_desc_write.dstBinding = 0;
@@ -464,6 +468,8 @@ class Renderer {
             acc_list.pAccelerationStructures = &tlas->structure;
             acc_desc_write.pNext = &acc_list;
 
+
+            // RT image descriptor  
             vk::WriteDescriptorSet img_desc_write;
             img_desc_write.dstSet = descriptor_set;
             img_desc_write.dstBinding = 1;
@@ -475,8 +481,24 @@ class Renderer {
             img_info.imageView = frame_data[i]->rt_image_view;
             img_desc_write.pImageInfo = &img_info;
 
-            vk::WriteDescriptorSet writes[] = {acc_desc_write, img_desc_write};
-            device.updateDescriptorSets(2, writes, 0, nullptr);
+            // Camera UBO descriptor
+            vk::WriteDescriptorSet cam_desc_write;
+            cam_desc_write.dstSet = descriptor_set;
+            cam_desc_write.dstBinding = 2;
+            cam_desc_write.descriptorType = vk::DescriptorType::eUniformBuffer;
+            cam_desc_write.descriptorCount = 1;
+
+            vk::DescriptorBufferInfo cb_info;
+            cb_info.buffer = frame_data[i]->camera_buffer;
+            cb_info.offset = 0;
+            cb_info.range = sizeof(RTCamera);
+
+            cam_desc_write.pBufferInfo = &cb_info;
+
+
+
+            vk::WriteDescriptorSet writes[] = {acc_desc_write, img_desc_write, cam_desc_write};
+            device.updateDescriptorSets(3, writes, 0, nullptr);
 
 
 
@@ -535,6 +557,49 @@ class Renderer {
         barrier = vk::ImageMemoryBarrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::DependencyFlags(), nullptr, nullptr, barrier);
         
+        // Update camera buffer
+        // We use vec4 because of std 140 layout rules
+        camera.position = glm::vec4(-10.0f, 10.0f, -10.0f, 0.0f);
+        glm::vec3 target_pos =  glm::vec3(0.0f, 0.0f, 0.0f);
+        auto view_dir = glm::normalize(target_pos - glm::vec3(camera.position));
+        camera.direction = glm::vec4(view_dir, 0.0f);
+        camera.up = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+        camera.right = glm::vec4(glm::normalize(glm::cross(glm::vec3(camera.direction), glm::vec3(camera.up))), 0.0f);
+        camera.fov = glm::radians(90.0);
+        camera.min = 0.001f;
+        camera.max = 1000.0f;
+        camera.aspect_ratio = static_cast<float>(r_width) / static_cast<float>(r_height);
+        void* mapped_data = nullptr;
+        vmaMapMemory(allocator, 
+            frame_data[current_frame]->staging_buffer_allocation, &mapped_data);
+        std::memcpy(mapped_data, &camera, sizeof(RTCamera));
+        vmaUnmapMemory(allocator, frame_data[current_frame]->staging_buffer_allocation);
+    
+        vk::BufferCopy copy_region{};
+        copy_region.srcOffset = 0;
+        copy_region.dstOffset = 0;
+        copy_region.size = sizeof(RTCamera);
+    
+        cmd_buffer.copyBuffer(frame_data[current_frame]->staging_buffer, frame_data[current_frame]->camera_buffer, copy_region);
+        // Add a pipeline barrier to ensure the copy operation is complete before ray tracing
+        vk::BufferMemoryBarrier buffer_barrier(
+            vk::AccessFlagBits::eTransferWrite, 
+            vk::AccessFlagBits::eShaderRead, 
+            VK_QUEUE_FAMILY_IGNORED, 
+            VK_QUEUE_FAMILY_IGNORED, 
+            frame_data[current_frame]->camera_buffer, 
+            0, 
+            sizeof(RTCamera)
+        );
+        cmd_buffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, 
+            vk::PipelineStageFlagBits::eRayTracingShaderKHR, 
+            vk::DependencyFlags(), 
+            nullptr, 
+            buffer_barrier, 
+            nullptr
+        );
+
         // Ray tracing commands ....
         cmd_buffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, pipeline->pipeline);
         cmd_buffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR,

@@ -11,10 +11,6 @@ struct StagingBuffer {
     vk::DeviceMemory memory;
 };
 
-struct Camera {
-    glm::mat4 view;
-    glm::mat4 projection;
-};
 
 struct UnifromBuffer {
     Camera matrices;

@@ -1,5 +1,6 @@
 #pragma once
 #include <renderer/vulkan.hpp>
+#include <renderer/camera.hpp>
 #include <memory>
 
 // Contains data common to all frames
@@ -68,6 +69,15 @@ vk::Fence fence;
 vk::Image rt_image;
 vk::ImageView rt_image_view;
 VmaAllocation rt_image_allocation;
+
+// Camera UBO
+vk::Buffer camera_buffer;
+VmaAllocation camera_allocation;
+
+// Persistant staging buffer
+vk::Buffer staging_buffer;
+VmaAllocation staging_buffer_allocation;
+
 
 // We'll later need more images for denoising and for output which
 // gets blitted to the swapchain image
@@ -148,6 +158,34 @@ device(common_data->device), width(width), height(height), frame_index(frame_ind
 
     rt_image_view = device.createImageView(view_info);
 
+    // Create camera buffer
+    vk::BufferCreateInfo buffer_info{};
+    buffer_info.size = sizeof(RTCamera);
+    buffer_info.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
+    buffer_info.sharingMode = vk::SharingMode::eExclusive;
+    
+    VmaAllocationCreateInfo buffer_alloc_info{};
+    buffer_alloc_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+    buffer_alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    buffer_alloc_info.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    vmaCreateBuffer(common_data->allocator, reinterpret_cast<VkBufferCreateInfo*>(&buffer_info), &buffer_alloc_info, 
+        reinterpret_cast<VkBuffer*>(&camera_buffer), &camera_allocation, nullptr);
+    
+    // Create reusable staging buffer
+    vk::BufferCreateInfo staging_buffer_info{};
+    staging_buffer_info.size = 1024 * 1024; // 1MB
+    staging_buffer_info.usage = vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst;
+    staging_buffer_info.sharingMode = vk::SharingMode::eExclusive;
+
+    VmaAllocationCreateInfo staging_buffer_alloc_info{};
+    staging_buffer_alloc_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+    staging_buffer_alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    
+
+    vmaCreateBuffer(common_data->allocator, reinterpret_cast<VkBufferCreateInfo*>(&staging_buffer_info), &staging_buffer_alloc_info, 
+        reinterpret_cast<VkBuffer*>(&staging_buffer), &staging_buffer_allocation, nullptr);
+    
     // Create semaphore
     vk::SemaphoreCreateInfo sem_info{};
     device.createSemaphore(&sem_info, nullptr, &sem);
@@ -183,10 +221,34 @@ device(common_data->device), width(width), height(height), frame_index(frame_ind
     device.destroySemaphore(sc_image_available);
     device.destroySemaphore(sem);
     device.destroyImageView(rt_image_view);
+    vmaDestroyBuffer(common_data->allocator, camera_buffer, camera_allocation);
+    vmaDestroyBuffer(common_data->allocator, staging_buffer, staging_buffer_allocation);
     vmaDestroyImage(common_data->allocator, rt_image, rt_image_allocation);
     
     device.destroyFence(fence);
     device.freeCommandBuffers(common_data->command_pool, command_buffer);
 }
+
+// void update_camera_buffer(const RTCamera& camera) {
+//     void* mapped_data = nullptr;
+
+//     // Map the staging buffer memory
+//     vmaMapMemory(common_data->allocator, staging_buffer_allocation, &mapped_data);
+//     std::memcpy(mapped_data, &camera, sizeof(RTCamera));
+//     vmaUnmapMemory(common_data->allocator, staging_buffer_allocation);
+
+//     // Record command to copy from staging buffer to camera buffer
+//     vk::CommandBufferBeginInfo begin_info{};
+//     command_buffer.begin(begin_info);
+
+//     vk::BufferCopy copy_region{};
+//     copy_region.srcOffset = 0;
+//     copy_region.dstOffset = 0;
+//     copy_region.size = sizeof(RTCamera);
+
+//     command_buffer.copyBuffer(staging_buffer, camera_buffer, copy_region);
+
+//     command_buffer.end();
+// }
 
 };

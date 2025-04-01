@@ -2,11 +2,40 @@
 #extension GL_EXT_ray_tracing : require
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-// layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 // Change format and image setup code if needed
 layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
+
+// Be wary of alignment
+layout(std140, binding = 2, set = 0) uniform Camera {
+    vec4 position;
+    vec4 direction;
+    vec4 up;
+    vec4 right;
+    float fov;
+    float rmin;
+    float rmax;
+    float aspect_ratio;
+    
+} camera;
+
 layout(location = 0) rayPayloadEXT vec4 payload;
+
+struct Ray {
+    vec3 origin;
+    vec3 direction;
+};
+
+// Computes the ray direction based on the camera parameters and the pixel coordinate
+Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up, vec3 right, float fov, float aspect_ratio) {
+    float scale = tan(fov * 0.5);
+    vec3 ray_direction = normalize(
+        (uv.x - 0.5) * aspect_ratio * scale * right 
+        -(uv.y - 0.5) * scale * up +  direction
+    );
+    
+    return Ray(position, ray_direction);
+}
 
 void main()
 {
@@ -17,34 +46,35 @@ void main()
     uvec2 pixel = gl_LaunchIDEXT.xy;
     uvec2 resolution = gl_LaunchSizeEXT.xy;
 
-    // Normalize pixel coords to [0, 1]
+    // Normalize pixel coords
     vec2 uv = (vec2(pixel) + 0.5) / vec2(resolution);
 
-    // Map to orthographic plane in world space
-    float x = (uv.x - 0.5) * 8;
-    float y = (uv.y - 0.5) * 6;
 
-    vec3 camera_pos = vec3(0.0, 0.0, -2.0);
-    // vec3 ray_origin = camera_pos; 
-    // vec3 ray_origin = vec3(camera_pos.x + gl_LaunchIDEXT.x, camera_pos.y + gl_LaunchIDEXT.y, camera_pos.z);
-    vec3 ray_origin = camera_pos + vec3(x, y, 0.0);
-    vec3 ray_direction = vec3(0, 0, 1.0);
+
+    Ray ray = compute_perspective_ray(
+        uv,
+        camera.position.xyz,
+        camera.direction.xyz, 
+        camera.up.xyz, 
+        camera.right.xyz, 
+        camera.fov,
+        camera.aspect_ratio
+    );
 
     traceRayEXT(
         topLevelAS, 
         gl_RayFlagsOpaqueEXT, 
-        0xFF, 
+        0xFF, // mask
         0, // sbt offset
         0, // sbt stride
         0, // miss index
-        ray_origin, // ray origin
-        0.001, // ray min
-        ray_direction, // ray direction, 
-        1000.0, //ray max
+        ray.origin, // ray origin
+        camera.rmin, // ray min
+        ray.direction, // ray direction, 
+        camera.rmax, //ray max
         0 // ray payload
     );
 
-    // imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(0.5, 0.5, 0.5, 1.0));
     imageStore(image, ivec2(gl_LaunchIDEXT.xy), payload);
 
 }
