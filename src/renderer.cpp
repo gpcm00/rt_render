@@ -1,10 +1,11 @@
 #include <renderer/renderer.hpp>
 
-static vk::TransformMatrixKHR from_mat4(glm::mat4& mat) {
+static vk::TransformMatrixKHR from_mat4(const glm::mat4& mat) {
+    // glm::mat4 should be column major but vk::TransformMatrixKHR appears to be row major
     vk::TransformMatrixKHR ret{};
     for (int r = 0 ; r < 3; r++) {
         for (int c = 0; c < 4; c++) {
-            ret.matrix[r][c] = mat[r][c];
+            ret.matrix[r][c] = mat[c][r];
         }
     }
     return ret;
