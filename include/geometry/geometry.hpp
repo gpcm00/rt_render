@@ -182,7 +182,7 @@ struct Mesh {
     std::vector<Vertex> vertices;
 
     int texture_index;
-    int mesh_id;
+    uint32_t mesh_id;
 };
 
 struct Object {

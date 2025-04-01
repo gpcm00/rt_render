@@ -31,6 +31,13 @@ layout(scalar, set = 0, binding = 3) buffer Meshes {
   Mesh meshes[];
 };
 
+struct Instance {
+    uint mesh_id;
+};
+
+layout(scalar, set = 0, binding = 4) buffer Instances {
+    Instance instances[];
+};
 
 // layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
@@ -45,7 +52,7 @@ void main()
   // vec3 light_pos = vec3(-10.0, 10.0, 0.0); // test light position
   vec3 light_pos = vec3(-4.0, 4.0, -2.0); // test light position
 
-  uint mesh_id = 0; // TODO: get this dynamically
+  uint mesh_id = instances[gl_InstanceCustomIndexEXT].mesh_id;
   Mesh mesh = meshes[mesh_id];
 
   // Retrieve the indices of the triangle

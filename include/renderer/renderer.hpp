@@ -244,7 +244,8 @@ class Renderer {
             {0, vk::DescriptorType::eAccelerationStructureKHR, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
-            {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR} // mesh data            
+            {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // mesh data            
+            {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR} // instance data
         };
 
         // Create pipeline
@@ -409,7 +410,8 @@ class Renderer {
         create_sbt();
         // load_scene("sample/Duck.gltf");
         // load_scene("sample/AntiqueCamera/glTF/AntiqueCamera.gltf");
-        load_scene("sample/Cube.gltf");
+        // load_scene("sample/Cube.gltf");
+        load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
 
         frame_setup();
 
@@ -508,16 +510,29 @@ class Renderer {
             mesh_info.range = sizeof(MeshData) * tlas->mesh_data.size();
             mesh_desc_write.pBufferInfo = &mesh_info;
 
+            // Instance data descriptor
+            vk::WriteDescriptorSet instance_desc_write;
+            instance_desc_write.dstSet = descriptor_set;
+            instance_desc_write.dstBinding = 4;
+            instance_desc_write.descriptorType = vk::DescriptorType::eStorageBuffer;
+            instance_desc_write.descriptorCount = 1;
+            vk::DescriptorBufferInfo instance_info;
+            instance_info.buffer = tlas->instance_data_buffer;
+            instance_info.offset = 0;
+            instance_info.range = sizeof(InstanceData) * tlas->instance_data.size();
+            instance_desc_write.pBufferInfo = &instance_info;
 
+ 
 
-
+            // Update descriptor set
             vk::WriteDescriptorSet writes[] = {
                 acc_desc_write, 
                 img_desc_write, 
                 cam_desc_write,
-                mesh_desc_write
+                mesh_desc_write,
+                instance_desc_write
             };
-            device.updateDescriptorSets(4, writes, 0, nullptr);
+            device.updateDescriptorSets(5, writes, 0, nullptr);
 
 
 
@@ -578,7 +593,7 @@ class Renderer {
         
         // Update camera buffer
         // We use vec4 because of std 140 layout rules
-        camera.position = glm::vec4(-10.0f, 10.0f, -10.0f, 0.0f);
+        camera.position = glm::vec4(-100.0f, 100.0f, -100.0f, 0.0f);
         glm::vec3 target_pos =  glm::vec3(0.0f, 0.0f, 0.0f);
         auto view_dir = glm::normalize(target_pos - glm::vec3(camera.position));
         camera.direction = glm::vec4(view_dir, 0.0f);

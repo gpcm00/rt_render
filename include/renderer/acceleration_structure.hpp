@@ -70,6 +70,10 @@ struct MeshData {
     vk::DeviceAddress index;
 };
 
+struct InstanceData {
+    uint32_t mesh_id;
+};
+
 class TopLevelAccelerationStructure {
     private:
     // Need these for freeing resources
@@ -91,9 +95,16 @@ class TopLevelAccelerationStructure {
 
     std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
 
+    // This is a lookup table for vertex and index buffers
     std::vector<MeshData> mesh_data;
     vk::Buffer mesh_data_buffer;
     VmaAllocation mesh_data_allocation;
+
+    // This stores data associated with each instance
+    // for in-shader acccess
+    std::vector<InstanceData> instance_data;
+    vk::Buffer instance_data_buffer;
+    VmaAllocation instance_data_allocation;
 
     TopLevelAccelerationStructure(vk::Device & device, 
         vk::detail::DispatchLoaderDynamic & dl,
@@ -104,4 +115,5 @@ class TopLevelAccelerationStructure {
          queue_family_index(queue_family_index) { 
 
     }
+    
 };

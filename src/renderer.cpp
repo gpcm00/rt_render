@@ -407,12 +407,11 @@ void Renderer::load_scene(std::string file_path) {
 
             create_BLAS(tlas.get(), &it->second);
         } 
-        // create_device_buffer(current_instance.buffer, current_instance.memory, &object.transformation, sizeof(glm::mat4), 
-        //                                                                                     vk::BufferUsageFlagBits::eVertexBuffer);
-        // current_instance.mesh_buffer = &it->second;
-        // current_instance.transformation = object.transformation;
-        // objects.push_back(current_instance);
+
         tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.transformation));
+        tlas->instance_data.push_back(InstanceData{
+            object.mesh->mesh_id
+        });
 
         // create mesh data buffer
         auto [mesh_data_buffer, mesh_data_allocation] = 
@@ -420,6 +419,12 @@ void Renderer::load_scene(std::string file_path) {
         tlas->mesh_data_buffer = mesh_data_buffer;
         tlas->mesh_data_allocation = mesh_data_allocation;
     }
+
+    // Create instance data buffer
+    auto [instance_data_buffer, instance_data_allocation] = 
+        create_device_buffer_with_data(tlas->instance_data.data(), tlas->instance_data.size() * sizeof(InstanceData), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+    tlas->instance_data_buffer = instance_data_buffer;
+    tlas->instance_data_allocation = instance_data_allocation;
 
     create_TLAS(tlas.get());
 }
