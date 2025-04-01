@@ -62,7 +62,7 @@ class Renderer {
     vk::CommandPool general_command_pool;
     // Pipeline pipeline;
 
-    Scene scene;
+    std::unique_ptr<Scene> scene;
 
     // UnifromBuffer camera;
 

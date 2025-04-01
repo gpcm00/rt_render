@@ -377,12 +377,12 @@ void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
 }
 
 void Renderer::load_scene(std::string file_path) {
-    scene = Scene(file_path);
+    scene = std::make_unique<Scene>(file_path);
 
     tlas = std::make_unique<TopLevelAccelerationStructure>(device, dl, 
         general_command_pool, graphics_queue_family_index);
     auto & meshes = tlas->meshes;
-    for (auto& object : scene) {
+    for (auto& object : *scene) {
         // InstanceBuffer current_instance;
         auto it = meshes.find(object.mesh);
         if (it == meshes.end()) {

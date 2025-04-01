@@ -197,7 +197,6 @@ class Scene {
 
 
     public:
-    Scene() = default;
     Scene(const std::string& filename); 
     ~Scene() { for (auto material : materials) material.cleanup(); }
 
