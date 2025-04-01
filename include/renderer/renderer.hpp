@@ -410,8 +410,9 @@ class Renderer {
         create_sbt();
 
         // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
-        load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
+        // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
+        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
 
         frame_setup();
 
@@ -593,7 +594,7 @@ class Renderer {
         
         // Update camera buffer
         // We use vec4 because of std 140 layout rules
-        camera.position = glm::vec4(-40.0f, 40.0f, -40.0f, 0.0f);
+        camera.position = glm::vec4(-1.0f, 1.0f, -1.0f, 0.0f);
         glm::vec3 target_pos =  glm::vec3(0.0f, 0.0f, 0.0f);
         auto view_dir = glm::normalize(target_pos - glm::vec3(camera.position));
         camera.direction = glm::vec4(view_dir, 0.0f);

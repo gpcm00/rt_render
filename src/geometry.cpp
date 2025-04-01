@@ -185,7 +185,7 @@ Scene::Scene(const std::string& filename)  {
 
     size_t mat_i = 0;
     for (auto& material : model.materials) {
-        materials.push_back(Material(material, model.images.data(), base_dir));
+        materials.push_back(Material(material, model, base_dir));
         mat_i++;
     }
 

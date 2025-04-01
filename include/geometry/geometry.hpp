@@ -63,7 +63,7 @@ class Material {
     public:
     Material() = default;
 
-    Material(tinygltf::Material& material, tinygltf::Image* images, std::filesystem::path base_directory) : dir(base_directory) {
+    Material(tinygltf::Material& material, tinygltf::Model & model, std::filesystem::path base_directory) : dir(base_directory) {
         name = material.name;
 
         memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(), sizeof(base_color));
@@ -81,38 +81,47 @@ class Material {
 
         std::cout<< name << ": \n";
         if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
-            uint32_t i = material.pbrMetallicRoughness.baseColorTexture.index;
-            std::string file_path = (dir / images[i].uri).string();
+            uint32_t texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
+            uint32_t i = model.textures[texture_index].source;
+
+            std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(file_path, TextureMap::TextureType::baseColorTexture));
-            std::cout << "\tBase color: " << images[i].uri << std::endl;
+            std::cout << "\tBase color: " << model.images[i].uri << std::endl;
         }
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
-            uint32_t i = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
-            std::string file_path = (dir / images[i].uri).string();
+            uint32_t texture_index = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            uint32_t i = model.textures[texture_index].source;
+            std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(file_path, TextureMap::TextureType::metallicRoughness));
-            std::cout << "\tMetallic Roughness Texture: " << images[i].uri << std::endl;
+            std::cout << "\tMetallic Roughness Texture: " << model.images[i].uri << std::endl;
         }
 
         if (material.normalTexture.index  >= 0) {
-            uint32_t i = material.normalTexture.index;
-            std::string file_path = (dir / images[i].uri).string();
+            uint32_t texture_index = material.normalTexture.index;
+            uint32_t i = model.textures[texture_index].source;
+
+            std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(file_path, TextureMap::TextureType::normalTexture));
-            std::cout << "\tNormal Texture: " << images[i].uri << std::endl;
+            std::cout << "\tNormal Texture: " << model.images[i].uri << std::endl;
         }
 
         if (material.emissiveTexture.index  >= 0) {
-            uint32_t i = material.emissiveTexture.index;
-            std::string file_path = (dir / images[i].uri).string();
+            uint32_t texture_index = material.emissiveTexture.index;
+            uint32_t i = model.textures[texture_index].source;
+
+            std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(file_path, TextureMap::TextureType::emissiveTexture));
-            std::cout << "\tEmissive Texture: " << images[i].uri << std::endl;
+            std::cout << "\tEmissive Texture: " << model.images[i].uri << std::endl;
         }
 
         if (material.occlusionTexture.index  >= 0) {
-            uint32_t i = material.occlusionTexture.index;
-            std::string file_path = (dir / images[i].uri).string();
+            uint32_t texture_index = material.occlusionTexture.index;
+            uint32_t i = model.textures[texture_index].source;
+
+            std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(file_path, TextureMap::TextureType::occlusionTexture));
-            std::cout << "\tOcclusion Texture: " << images[i].uri << std::endl;
+            std::cout << "\tOcclusion Texture: " << model.images[i].uri << std::endl;
         }
     }
 
