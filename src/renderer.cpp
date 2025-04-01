@@ -386,11 +386,24 @@ void Renderer::load_scene(std::string file_path) {
         // InstanceBuffer current_instance;
         auto it = meshes.find(object.mesh);
         if (it == meshes.end()) {
+            
             create_mesh_buffer(tlas.get(), object.mesh);
+
             it = meshes.find(object.mesh);
             if (it == meshes.end()) {
                 throw std::runtime_error("Failed to create mesh buffer");
             }
+
+            if (tlas->mesh_data.size() !=  object.mesh->mesh_id) {
+                std::cout << "Mesh ID: " << object.mesh->mesh_id << std::endl;
+                std::cout << "Mesh data size: " << tlas->mesh_data.size() - 1 << std::endl;
+                throw std::runtime_error("Mesh ID mismatch");
+            }
+
+            tlas->mesh_data.push_back(MeshData{
+                get_device_address(it->second.vertex_buffer),
+                get_device_address(it->second.index_buffer)
+            });
 
             create_BLAS(tlas.get(), &it->second);
         } 
@@ -400,6 +413,12 @@ void Renderer::load_scene(std::string file_path) {
         // current_instance.transformation = object.transformation;
         // objects.push_back(current_instance);
         tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.transformation));
+
+        // create mesh data buffer
+        auto [mesh_data_buffer, mesh_data_allocation] = 
+            create_device_buffer_with_data(tlas->mesh_data.data(), tlas->mesh_data.size() * sizeof(MeshData), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+        tlas->mesh_data_buffer = mesh_data_buffer;
+        tlas->mesh_data_allocation = mesh_data_allocation;
     }
 
     create_TLAS(tlas.get());

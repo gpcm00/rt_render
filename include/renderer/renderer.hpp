@@ -243,7 +243,8 @@ class Renderer {
         std::vector<vk::DescriptorSetLayoutBinding> bindings = {
             {0, vk::DescriptorType::eAccelerationStructureKHR, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
-            {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}
+            {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
+            {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR} // mesh data            
         };
 
         // Create pipeline
@@ -495,10 +496,28 @@ class Renderer {
 
             cam_desc_write.pBufferInfo = &cb_info;
 
+            // Mesh data descriptor
+            vk::WriteDescriptorSet mesh_desc_write;
+            mesh_desc_write.dstSet = descriptor_set;
+            mesh_desc_write.dstBinding = 3;
+            mesh_desc_write.descriptorType = vk::DescriptorType::eStorageBuffer;
+            mesh_desc_write.descriptorCount = 1;
+            vk::DescriptorBufferInfo mesh_info;
+            mesh_info.buffer = tlas->mesh_data_buffer;
+            mesh_info.offset = 0;
+            mesh_info.range = sizeof(MeshData) * tlas->mesh_data.size();
+            mesh_desc_write.pBufferInfo = &mesh_info;
 
 
-            vk::WriteDescriptorSet writes[] = {acc_desc_write, img_desc_write, cam_desc_write};
-            device.updateDescriptorSets(3, writes, 0, nullptr);
+
+
+            vk::WriteDescriptorSet writes[] = {
+                acc_desc_write, 
+                img_desc_write, 
+                cam_desc_write,
+                mesh_desc_write
+            };
+            device.updateDescriptorSets(4, writes, 0, nullptr);
 
 
 

@@ -164,6 +164,7 @@ Scene::Scene(const std::string& filename)  {
             if (primitive.material != geometries[mesh_i].texture_index) {
                 geometries[mesh_i].texture_index = primitive.material;
             }
+            geometries[mesh_i].mesh_id = mesh_i;
         }
 
         std::cout << "Mesh["<< mesh_i << "]:\n";

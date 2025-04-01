@@ -65,6 +65,11 @@ struct TopAccelerationBuffer {
 };
 */
 
+struct MeshData {
+    vk::DeviceAddress vertex;
+    vk::DeviceAddress index;
+};
+
 class TopLevelAccelerationStructure {
     private:
     // Need these for freeing resources
@@ -85,6 +90,10 @@ class TopLevelAccelerationStructure {
     std::unordered_map<const Mesh*, MeshBuffer> meshes;
 
     std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
+
+    std::vector<MeshData> mesh_data;
+    vk::Buffer mesh_data_buffer;
+    VmaAllocation mesh_data_allocation;
 
     TopLevelAccelerationStructure(vk::Device & device, 
         vk::detail::DispatchLoaderDynamic & dl,
