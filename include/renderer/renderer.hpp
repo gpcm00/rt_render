@@ -584,7 +584,7 @@ class Renderer {
         camera.direction = glm::vec4(view_dir, 0.0f);
         camera.up = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
         camera.right = glm::vec4(glm::normalize(glm::cross(glm::vec3(camera.direction), glm::vec3(camera.up))), 0.0f);
-        camera.fov = glm::radians(90.0);
+        camera.fov = glm::radians(90.0f/2.0f);
         camera.min = 0.001f;
         camera.max = 1000.0f;
         camera.aspect_ratio = static_cast<float>(r_width) / static_cast<float>(r_height);
