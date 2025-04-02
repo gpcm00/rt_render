@@ -456,7 +456,7 @@ class Renderer {
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;
         region.imageOffset = vk::Offset3D{0, 0, 0};
-        region.imageExtent = vk::Extent3D{uvmap.width(), uvmap.height(), 1};
+        region.imageExtent = vk::Extent3D{static_cast<uint32_t>(uvmap.width()), static_cast<uint32_t>(uvmap.height()), 1};
 
         std::vector<vk::BufferImageCopy> regions = {region};
         command_buffer.copyBufferToImage(staging_buffer, current_memory.image, vk::ImageLayout::eTransferDstOptimal, regions.size(), regions.data());
