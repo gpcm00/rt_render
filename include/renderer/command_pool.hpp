@@ -8,10 +8,12 @@ class Command_Pool {
     vk::Device* device;
     vk::CommandPool pool;
     vk::Queue queue;
+    bool initialized;
 
     public:
     Command_Pool() = default;
     Command_Pool(vk::Device* dev, vk::PhysicalDevice* physical_device, vk::QueueFlagBits flag) : device(dev) {
+        initialized = false;
         uint32_t count = 0;
         physical_device->getQueueFamilyProperties(&count, nullptr);
 
@@ -33,10 +35,18 @@ class Command_Pool {
         pool = device->createCommandPool(poolInfo);
 
         queue = device->getQueue(queue_index, 0);
+        initialized = true;
+    }
+
+    void destroy_pool() {
+        if (initialized) {
+            device->destroyCommandPool(pool);
+            initialized = false;
+        }
     }
 
     ~Command_Pool() {
-        device->destroyCommandPool(pool);
+        destroy_pool();
     }
 
     vk::CommandBuffer single_command_buffer(vk::CommandBufferLevel level) {

@@ -288,6 +288,7 @@ class Renderer {
         vmaDestroyBuffer(allocator, sbt.buffer, sbt.allocation);
         pipeline.reset();
         device.destroyCommandPool(general_command_pool);
+        pool.destroy_pool();
         vmaDestroyAllocator(allocator);
         device.destroy();
         instance.destroySurfaceKHR(surface);
@@ -600,19 +601,7 @@ class Renderer {
         barrier = vk::ImageMemoryBarrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::DependencyFlags(), nullptr, nullptr, barrier);
         
-        // Update camera buffer
-        // We use vec4 because of std 140 layout rules
-        camera.position = glm::vec4(-5.0f, 3.0f, -5.0f, 0.0f);
-        // camera.position = glm::vec4(-10.0f, 10.0f, 15.0f, 0.0f);
-        glm::vec3 target_pos =  glm::vec3(0.0f, 0.0f, 0.0f);
-        auto view_dir = glm::normalize(target_pos - glm::vec3(camera.position));
-        camera.direction = glm::vec4(view_dir, 0.0f);
-        camera.up = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-        camera.right = glm::vec4(glm::normalize(glm::cross(glm::vec3(camera.direction), glm::vec3(camera.up))), 0.0f);
-        camera.fov = glm::radians(90.0f/2.0f);
-        camera.min = 0.001f;
-        camera.max = 1000.0f;
-        camera.aspect_ratio = static_cast<float>(r_width) / static_cast<float>(r_height);
+        // Update camera buffer (parameters updated externally)
         void* mapped_data = nullptr;
         vmaMapMemory(allocator, 
             frame_data[current_frame]->staging_buffer_allocation, &mapped_data);
@@ -709,5 +698,9 @@ class Renderer {
 
         current_frame  = (current_frame + 1) % swapchain->get_num_images();
 
+    }
+
+    RTCamera& get_camera() {
+        return camera;
     }
 };
