@@ -288,7 +288,7 @@ class Renderer {
         vmaDestroyBuffer(allocator, sbt.buffer, sbt.allocation);
         pipeline.reset();
         device.destroyCommandPool(general_command_pool);
-        pool.destroy_pool();
+        // pool.destroy_pool();
         vmaDestroyAllocator(allocator);
         device.destroy();
         instance.destroySurfaceKHR(surface);

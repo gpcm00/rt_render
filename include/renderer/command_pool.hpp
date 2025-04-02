@@ -8,7 +8,7 @@ class Command_Pool {
     vk::Device* device;
     vk::CommandPool pool;
     vk::Queue queue;
-    bool initialized;
+    bool initialized = false;
 
     public:
     Command_Pool() = default;
