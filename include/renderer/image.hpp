@@ -4,14 +4,17 @@
 
 class ImageStorage {
     public:
-    struct ImageMemory {
+    struct Textures {
         vk::Image image;
         vk::DeviceSize size;
-        vk::Buffer buffer;
-        vk::DeviceMemory memory;
-    };   
+        VmaAllocation memory;
+        vk::ImageView view;
+        vk::Sampler sampler;
+    };
 
-    std::vector<ImageMemory> images;
+    
+
+    std::vector<Textures> images_memory;
 
     vk::ImageCreateInfo get_create_info(uint32_t width, uint32_t height) {
         vk::ImageCreateInfo imageInfo{};

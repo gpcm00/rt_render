@@ -234,6 +234,14 @@ class Scene {
         return objects.end();
     }
 
+    Material material(size_t i) {
+        return (!materials.empty() && i < materials.size()) ? materials[i] : Material();
+    }
+
+    size_t material_size() {
+        return materials.size();
+    }
+
     std::vector<Mesh>& get_geometries() {
         return geometries;
     }
