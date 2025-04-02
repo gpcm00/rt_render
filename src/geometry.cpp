@@ -51,6 +51,19 @@ static glm::mat4 get_node_transform(const tinygltf::Node& node) {
     return transform;
 }
 
+static glm::mat4 get_node_global_transform(const tinygltf::Node& node, std::unordered_map<const tinygltf::Node*, const tinygltf::Node*>& parents) {
+
+    auto transform = get_node_transform(node);
+    const tinygltf::Node* current = &node;
+    while (parents.find(current) != parents.end()) {
+        current = parents[current];
+        const auto parent_transform = get_node_transform(*current);
+        transform = parent_transform * transform;
+    }
+
+    return transform;
+}
+
 static size_t populate_vertex_data(tinygltf::Model& model, const tinygltf::Primitive& primitive, std::vector<Vertex>& vertices) {
     const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.at("POSITION")];
     const tinygltf::BufferView& posView = model.bufferViews[posAccessor.bufferView];
@@ -150,6 +163,16 @@ Scene::Scene(const std::string& filename)  {
     }
 
     std::cout << "Successfully loaded GLTF: " << filename << std::endl;
+    
+    // Build map of parents
+    std::unordered_map<const tinygltf::Node*, const tinygltf::Node*> parents;
+    for (size_t i = 0; i < model.nodes.size(); i++) {
+        for (auto & child : model.nodes[i].children) {
+            const tinygltf::Node* child_node = &model.nodes[child];
+            parents[child_node] = (const tinygltf::Node*)&model.nodes[i];
+        }
+    }
+    
     geometries.resize(model.meshes.size());
 
     size_t mesh_i = 0;
@@ -178,7 +201,7 @@ Scene::Scene(const std::string& filename)  {
     size_t obj_i = 0;
     for (auto& node : model.nodes) {
         if (node.mesh >= 0) {
-            objects.push_back({&geometries[node.mesh], get_node_transform(node)});
+            objects.push_back({&geometries[node.mesh], get_node_transform(node), get_node_global_transform(node, parents)});
             obj_i++;
         }
     }

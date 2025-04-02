@@ -102,7 +102,8 @@ void main()
   // vec3 object_color = vec3(0.0, 1.0, 0.0);
   vec3 color = object_color*(lighting + ambient);
 
-  
+  // For debugging
+//   color = position.xyz;
 
   payload = vec4(color, 1.0);
 }

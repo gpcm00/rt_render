@@ -406,7 +406,7 @@ void Renderer::load_scene(std::string file_path) {
             create_BLAS(tlas.get(), &it->second);
         } 
 
-        tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.transformation));
+        tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.global_transformation));
         tlas->instance_data.push_back(InstanceData{
             object.mesh->mesh_id
         });

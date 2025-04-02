@@ -32,8 +32,8 @@ class ShaderBindingTable {
 class Renderer {
     private:
     // hard code the dimensions for now
-    static constexpr int r_width = 800;
-    static constexpr int r_height = 600;
+    static constexpr int r_width = 1280;
+    static constexpr int r_height = 720;
     public:
 
     std::pair<int, int> get_dimensions() {
@@ -362,7 +362,7 @@ class Renderer {
 
     std::pair<vk::Buffer, VmaAllocation> create_device_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
         auto [staging_buffer, staging_allocation] = create_staging_buffer_with_data(data, size, usage);
-        std::cout << "Successfully created staging buffer" << std::endl;
+        // std::cout << "Successfully created staging buffer" << std::endl;
 
         // Create a device-local buffer for the data
         auto [buffer, allocation] = create_device_buffer(size,  usage | vk::BufferUsageFlagBits::eTransferDst);
@@ -412,7 +412,9 @@ class Renderer {
         // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
         // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
-        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
+        // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
+        load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
+
 
         frame_setup();
 
@@ -594,7 +596,7 @@ class Renderer {
         
         // Update camera buffer
         // We use vec4 because of std 140 layout rules
-        camera.position = glm::vec4(-1.0f, 1.0f, -1.0f, 0.0f);
+        camera.position = glm::vec4(-10.0f, 10.0f, -10.0f, 0.0f);
         glm::vec3 target_pos =  glm::vec3(0.0f, 0.0f, 0.0f);
         auto view_dir = glm::normalize(target_pos - glm::vec3(camera.position));
         camera.direction = glm::vec4(view_dir, 0.0f);

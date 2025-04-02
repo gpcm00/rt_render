@@ -197,6 +197,7 @@ struct Mesh {
 struct Object {
     const Mesh* mesh;
     glm::mat4 transformation;
+    glm::mat4 global_transformation;
 };
 
 class Scene {
