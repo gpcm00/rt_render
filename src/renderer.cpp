@@ -116,6 +116,7 @@ void Renderer::create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory
     device.freeMemory(staging_buffer_memory);
 }
 
+
 void Renderer::create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::DeviceSize size, vk::BufferUsageFlags usage, 
                                         vk::MemoryPropertyFlags properties, vk::SharingMode mode) {
     vk::BufferCreateInfo buffer_info{};
@@ -152,7 +153,7 @@ void Renderer::create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::D
     device.bindBufferMemory(buffer, memory, 0);
 }
 
-void Renderer::create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Mesh* mesh) {
+void Renderer::create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Primitive* mesh) {
     MeshBuffer mesh_buffer;
 
     vk::BufferUsageFlags flags = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR | 
@@ -170,6 +171,7 @@ void Renderer::create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Mes
     mesh_buffer.index_buffer = index_buffer;
     mesh_buffer.index_allocation = index_allocation;
 
+    mesh_buffer.num_vertices = mesh->vertices.size();
     mesh_buffer.num_indices = mesh->indices.size();
     tlas->meshes[mesh] = mesh_buffer;
 }
@@ -183,7 +185,7 @@ void Renderer::create_BLAS(TopLevelAccelerationStructure * tlas, const MeshBuffe
     triangles.vertexStride = sizeof(Vertex);
     triangles.indexType = vk::IndexType::eUint32;
     triangles.indexData.deviceAddress = get_device_address(mesh->index_buffer);
-
+    // triangles.maxVertex = mesh->num_vertices - 1;
     vk::AccelerationStructureGeometryKHR geometry{};
     geometry.geometryType = vk::GeometryTypeKHR::eTriangles;
     geometry.geometry.triangles = triangles;
@@ -349,6 +351,7 @@ void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
 
     vk::AccelerationStructureBuildRangeInfoKHR range_info{};
     range_info.primitiveCount = primitive_count;
+    range_info.primitiveOffset = 0;
 
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR*> range_infos = {&range_info};
     // vk::CommandBuffer cmd_buffer = pool.single_command_buffer(vk::CommandBufferLevel::ePrimary);
@@ -384,40 +387,33 @@ void Renderer::load_scene(std::string file_path) {
 
     tlas = std::make_unique<TopLevelAccelerationStructure>(device, dl, 
         general_command_pool, graphics_queue_family_index);
-    auto & meshes = tlas->meshes;
-    tlas->mesh_data.resize(scene->get_geometries().size());
+    auto & meshes = tlas->meshes; // it's called meshes but it holds primitive
+    tlas->mesh_data.resize(scene->num_primitives()); // also per-primitive data
 
     for (auto& object : *scene) {
-        // InstanceBuffer current_instance;
-        auto it = meshes.find(object.mesh);
-        if (it == meshes.end()) {
-            
-            create_mesh_buffer(tlas.get(), object.mesh);
-
-            it = meshes.find(object.mesh);
+        for (auto & primitive: object.mesh->primitives) {
+            auto it = meshes.find(&primitive);
             if (it == meshes.end()) {
-                throw std::runtime_error("Failed to create mesh buffer");
-            }
+                create_mesh_buffer(tlas.get(), &primitive);
+                it = meshes.find(&primitive);
+                if (it == meshes.end()) {
+                    throw std::runtime_error("Failed to create mesh buffer");
+                }
+    
+                tlas->mesh_data[primitive.primitive_id] = MeshData{
+                    get_device_address(it->second.vertex_buffer),
+                    get_device_address(it->second.index_buffer)
+                };
+    
+                create_BLAS(tlas.get(), &it->second);
+            } 
+    
+            tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.global_transformation, tlas->instance_data.size()));
+            tlas->instance_data.push_back(InstanceData{
+                primitive.primitive_id
+            });
+        }
 
-
-            tlas->mesh_data[object.mesh->mesh_id] = MeshData{
-                get_device_address(it->second.vertex_buffer),
-                get_device_address(it->second.index_buffer)
-            };
-
-            create_BLAS(tlas.get(), &it->second);
-        } 
-
-        tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.global_transformation, tlas->instance_data.size()));
-        tlas->instance_data.push_back(InstanceData{
-            object.mesh->mesh_id
-        });
-
-        // create mesh data buffer
-        auto [mesh_data_buffer, mesh_data_allocation] = 
-            create_device_buffer_with_data(tlas->mesh_data.data(), tlas->mesh_data.size() * sizeof(MeshData), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
-        tlas->mesh_data_buffer = mesh_data_buffer;
-        tlas->mesh_data_allocation = mesh_data_allocation;
     }
 
     // Create instance data buffer
@@ -425,6 +421,12 @@ void Renderer::load_scene(std::string file_path) {
         create_device_buffer_with_data(tlas->instance_data.data(), tlas->instance_data.size() * sizeof(InstanceData), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
     tlas->instance_data_buffer = instance_data_buffer;
     tlas->instance_data_allocation = instance_data_allocation;
+
+    // create mesh data buffer
+    auto [mesh_data_buffer, mesh_data_allocation] = 
+    create_device_buffer_with_data(tlas->mesh_data.data(), tlas->mesh_data.size() * sizeof(MeshData), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+    tlas->mesh_data_buffer = mesh_data_buffer;
+    tlas->mesh_data_allocation = mesh_data_allocation;
 
     create_TLAS(tlas.get());
 }

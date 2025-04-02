@@ -190,13 +190,30 @@ struct Vertex {
     }
 };
 
-struct Mesh {
+class Primitive {
+    public:
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
+    int32_t material_index;
+    uint32_t primitive_id;
 
-    int texture_index;
+    // Primitive(uint32_t id, uint32_t mat_index) : primitive_id(id), material_index(mat_index) {
+    // }
+};
+
+class Mesh {
+    public:
+    std::vector<Primitive> primitives;
     uint32_t mesh_id;
 };
+
+// struct Mesh {
+//     std::vector<uint32_t> indices;
+//     std::vector<Vertex> vertices;
+
+//     int texture_index;
+//     uint32_t mesh_id;
+// };
 
 struct Object {
     const Mesh* mesh;
@@ -209,6 +226,8 @@ class Scene {
     std::vector<Mesh> geometries;
     std::vector<Object> objects;
     std::vector<Material> materials;
+
+    uint32_t primitive_id;
 
 
     public:
@@ -239,7 +258,11 @@ class Scene {
         return objects.end();
     }
 
-    std::vector<Mesh>& get_geometries() {
-        return geometries;
+    // std::vector<Mesh>& get_geometries() {
+    //     return geometries;
+    // }
+
+    uint32_t num_primitives() {
+        return primitive_id;
     }
 };

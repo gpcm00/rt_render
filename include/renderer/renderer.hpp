@@ -295,7 +295,7 @@ class Renderer {
     void create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::DeviceSize size, vk::BufferUsageFlags usage, 
                                 vk::MemoryPropertyFlags properties, vk::SharingMode mode = vk::SharingMode::eExclusive);
     
-    void create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Mesh* mesh);
+    void create_mesh_buffer(TopLevelAccelerationStructure* tlas, const Primitive* mesh);
 
     vk::DeviceAddress get_device_address(vk::Buffer buffer) {
         vk::BufferDeviceAddressInfo info{};
@@ -334,6 +334,7 @@ class Renderer {
             void* mapped_data;
             vmaMapMemory(allocator, staging_allocation, &mapped_data);
             memcpy(mapped_data, data, static_cast<size_t>(size));
+            vmaFlushAllocation(allocator, staging_allocation, 0, size);
             vmaUnmapMemory(allocator, staging_allocation);
         }
         return {staging_buffer, staging_allocation};
@@ -554,6 +555,7 @@ class Renderer {
         auto q = device.getQueue(graphics_queue_family_index, 0);
         q.waitIdle();
 
+        device.waitIdle();
         frame_data.clear();
         common_data.reset();
     }
@@ -596,7 +598,8 @@ class Renderer {
         
         // Update camera buffer
         // We use vec4 because of std 140 layout rules
-        camera.position = glm::vec4(-10.0f, 10.0f, -10.0f, 0.0f);
+        camera.position = glm::vec4(-5.0f, 3.0f, -5.0f, 0.0f);
+        // camera.position = glm::vec4(-10.0f, 10.0f, 15.0f, 0.0f);
         glm::vec3 target_pos =  glm::vec3(0.0f, 0.0f, 0.0f);
         auto view_dir = glm::normalize(target_pos - glm::vec3(camera.position));
         camera.direction = glm::vec4(view_dir, 0.0f);

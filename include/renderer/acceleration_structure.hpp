@@ -27,6 +27,7 @@ struct MeshBuffer {
     vk::Buffer index_buffer;
     VmaAllocation index_allocation;
     
+    uint32_t num_vertices;
     uint32_t num_indices;
     // uint32_t index_buffer_size;
 };
@@ -92,7 +93,7 @@ class TopLevelAccelerationStructure {
     // std::vector<vk::AccelerationStructureInstanceKHR> instances;
     std::vector<InstanceBuffer> instance_buffers;
 
-    std::unordered_map<const Mesh*, MeshBuffer> meshes;
+    std::unordered_map<const Primitive*, MeshBuffer> meshes;
 
     std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
 

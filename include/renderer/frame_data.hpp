@@ -95,7 +95,7 @@ std::unordered_map<vk::DescriptorSetLayout, vk::DescriptorSet> descriptor_sets;
 
 
 FrameData(std::shared_ptr<CommonFrameData> common_data, int width, int height, int frame_index): 
-device(common_data->device), width(width), height(height), frame_index(frame_index) {
+common_data(common_data), device(common_data->device), width(width), height(height), frame_index(frame_index) {
 
     vk::CommandBufferAllocateInfo info{};
     info.level = vk::CommandBufferLevel::ePrimary;

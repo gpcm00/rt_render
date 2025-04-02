@@ -141,6 +141,10 @@ static size_t populate_index_data(tinygltf::Model& model, const tinygltf::Primit
             } else if (indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) {
                 indices.push_back(reinterpret_cast<const uint32_t*>(indexData)[i]);
             }
+            else {
+                std::cerr << "Unsupported index type: " << indexAccessor.componentType << std::endl;
+                return 0;
+            }
         }
     }
     return i;
@@ -176,24 +180,43 @@ Scene::Scene(const std::string& filename)  {
     geometries.resize(model.meshes.size());
 
     size_t mesh_i = 0;
+    primitive_id = 0;
     for (const auto& mesh : model.meshes) {
-        size_t n_vertices = 0;
-        size_t n_indices = 0;
+        // std::cout << "Mesh["<< mesh_i << "]: " << mesh.name << std::endl;
+        // size_t n_vertices = 0;
+        // size_t n_indices = 0;
 
-        geometries[mesh_i].texture_index = -1;
+        // geometries[mesh_i].texture_index = -1;
         for (auto& primitive : mesh.primitives) {
-            n_vertices += populate_vertex_data(model, primitive, geometries[mesh_i].vertices);
-            n_indices += populate_index_data(model, primitive, geometries[mesh_i].indices);
-            if (primitive.material != geometries[mesh_i].texture_index) {
-                geometries[mesh_i].texture_index = primitive.material;
+            // check if non-empty
+            // if (geometries[mesh_i].vertices.size() > 0) {
+            //     std::cout << "Mesh["<< mesh_i << "] already has vertices" << std::endl;
+            //     continue;
+            // }
+            // if (geometries[mesh_i].indices.size() > 0) {
+            //     std::cout << "Mesh["<< mesh_i << "] already has indices" << std::endl;
+            //     continue;
+            // }
+
+            if (primitive.mode != TINYGLTF_MODE_TRIANGLES) {
+                std::cerr << "Unsupported primitive mode: " << primitive.mode << std::endl;
+                continue;
             }
-            geometries[mesh_i].mesh_id = mesh_i;
+
+            // add a new primitive to the mesh
+            geometries[mesh_i].primitives.push_back({});
+            auto & p = geometries[mesh_i].primitives.back();
+            size_t n_vertices = populate_vertex_data(model, primitive, p.vertices);
+            size_t n_indices = populate_index_data(model, primitive, p.indices);
+
+            p.primitive_id = primitive_id++;
+            p.material_index = primitive.material;
+
+            std::cout << "Mesh["<< mesh_i << "] Primitive:\n";
+            std::cout << "\tVertices:" << n_vertices << std::endl;
+            std::cout << "\tIndices:" << n_indices << std::endl;
         }
-
-        std::cout << "Mesh["<< mesh_i << "]:\n";
-        std::cout << "\tVertices:" << n_vertices << std::endl;
-        std::cout << "\tIndices:" << n_indices << std::endl;
-
+        geometries[mesh_i].mesh_id = mesh_i;
         mesh_i++;
     }
 
