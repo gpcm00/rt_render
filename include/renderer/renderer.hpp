@@ -11,6 +11,7 @@
 #include <renderer/frame_data.hpp>
 #include <renderer/rt_pipeline.hpp>
 #include <renderer/acceleration_structure.hpp>
+#include <renderer/image.hpp>
 
 #include <unordered_map>
 #include <memory>
@@ -68,6 +69,8 @@ class Renderer {
     RTCamera camera;
 
     ShaderBindingTable sbt;
+
+    ImageStorage images;
 
 
     // std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
@@ -399,6 +402,121 @@ class Renderer {
 
     void create_TLAS(TopLevelAccelerationStructure * tlas);
 
+    void create_textures() {
+        // Material current = scene->material(0);
+        TextureMap uvmap;
+        uint32_t n_material = 0;
+        for (; n_material < scene->material_size(); n_material++) {
+            for (auto& texture : scene->material(n_material)) {
+                uvmap = texture;
+                if (uvmap.type() == TextureMap::TextureType::baseColorTexture) {
+                    break;
+                }
+            }
+        }
+        VkDeviceSize size = uvmap.width() * uvmap.height() * uvmap.channels();
+
+        auto [staging_buffer, vma_allocation] = create_staging_buffer_with_data(uvmap.data(), size, vk::BufferUsageFlagBits::eTransferSrc);
+        ImageStorage::Textures current_memory;
+        
+        vk::ImageCreateInfo create_info = images.get_create_info(uvmap.width(), uvmap.height());
+
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY; 
+        if (vmaCreateImage(allocator, reinterpret_cast<const VkImageCreateInfo*>(&create_info), 
+                    &allocInfo, reinterpret_cast<VkImage*>(&current_memory.image), &current_memory.memory, nullptr) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create image with VMA!");
+        }
+
+        vk::CommandBuffer command_buffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(
+                general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
+        
+        command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+        vk::ImageMemoryBarrier pre_barrier;
+        pre_barrier.oldLayout = vk::ImageLayout::eUndefined;
+        pre_barrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
+        pre_barrier.image = current_memory.image;
+        pre_barrier.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
+        pre_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+        pre_barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+        command_buffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eAllCommands, 
+            vk::PipelineStageFlagBits::eAllCommands,
+            {}, {}, {}, {pre_barrier} 
+        );
+
+        vk::BufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0; 
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = vk::Offset3D{0, 0, 0};
+        region.imageExtent = vk::Extent3D{uvmap.width(), uvmap.height(), 1};
+
+        std::vector<vk::BufferImageCopy> regions = {region};
+        command_buffer.copyBufferToImage(staging_buffer, current_memory.image, vk::ImageLayout::eTransferDstOptimal, regions.size(), regions.data());
+        
+        vk::ImageMemoryBarrier pos_barrier;
+        pos_barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+        pos_barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        pos_barrier.image = current_memory.image;
+        pos_barrier.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
+        pos_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+        pos_barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+        command_buffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eAllCommands, 
+            vk::PipelineStageFlagBits::eAllCommands,
+            {}, {}, {}, {pos_barrier} 
+        );
+
+        command_buffer.end();
+
+        auto q = device.getQueue(graphics_queue_family_index, 0);
+        vk::SubmitInfo submit_info;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
+        q.submit(1, &submit_info, nullptr);
+        q.waitIdle();
+        pool.free_command_buffer(command_buffer);
+        
+        vmaDestroyBuffer(allocator, staging_buffer, vma_allocation);
+
+        vk::PhysicalDeviceProperties properties = physical_device.getProperties();
+        vk::SamplerCreateInfo sampler_info{};
+        sampler_info.sType = vk::StructureType::eSamplerCreateInfo;
+		sampler_info.magFilter = vk::Filter::eLinear;
+		sampler_info.minFilter = vk::Filter::eLinear;
+		sampler_info.mipmapMode = vk::SamplerMipmapMode::eLinear;
+		sampler_info.addressModeU = vk::SamplerAddressMode::eRepeat;
+		sampler_info.addressModeV = vk::SamplerAddressMode::eRepeat;
+		sampler_info.addressModeW = vk::SamplerAddressMode::eRepeat;
+		sampler_info.mipLodBias = 0.0f;
+		sampler_info.compareOp = vk::CompareOp::eNever;
+		sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		sampler_info.anisotropyEnable = VK_TRUE;
+		sampler_info.borderColor = vk::BorderColor::eFloatOpaqueBlack;
+
+        current_memory.sampler = device.createSampler(sampler_info);
+            
+		vk::ImageViewCreateInfo view_create_info = {};
+		view_create_info.sType = vk::StructureType::eImageViewCreateInfo;
+		view_create_info.viewType = vk::ImageViewType::e2D;
+		view_create_info.format = vk::Format::eR8G8B8A8Unorm;
+		view_create_info.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
+        current_memory.view = device.createImageView(view_create_info);
+
+        images.images_memory.push_back(current_memory);
+
+		// Update descriptor image info member that can be used for setting up descriptor sets
+
+    }
+
     public:
 
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
@@ -530,6 +648,11 @@ class Renderer {
             instance_info.offset = 0;
             instance_info.range = sizeof(InstanceData) * tlas->instance_data.size();
             instance_desc_write.pBufferInfo = &instance_info;
+
+            vk::WriteDescriptorSet texture_desc_write;
+            texture_desc_write.dstSet = descriptor_set;
+            texture_desc_write.dstBinding = 5;
+            texture_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 
  
 
