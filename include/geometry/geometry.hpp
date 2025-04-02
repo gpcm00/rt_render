@@ -142,9 +142,13 @@ class Material {
 
 struct Vertex {
     glm::vec3 position;
+    float padding0;
     glm::vec3 normal;
+    float padding1;
     glm::vec3 color;
+    float padding2;
     glm::vec2 uvmap;
+    glm::vec2 padding3;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};

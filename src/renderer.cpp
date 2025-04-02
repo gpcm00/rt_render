@@ -279,7 +279,8 @@ void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
         instance.instanceCustomIndex = instance_index++;
         instance.mask = 0xFF;
         instance.instanceShaderBindingTableRecordOffset = 0;
-        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // maybe use vk::GeometryInstanceFlagBitsKHR::eTriangleFrontCounterclockwise
+        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; //
+        // instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FRONT_COUNTERCLOCKWISE_BIT_KHR;
         instance.accelerationStructureReference = current_blas.as_addr;
 
         instances.push_back(instance);

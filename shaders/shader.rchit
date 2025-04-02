@@ -7,10 +7,14 @@
 #extension GL_EXT_scalar_block_layout : enable
 
 struct Vertex {
-    vec3  position;
+    vec3 position;
+    float padding0;
     vec3 normal;
+    float padding1;
     vec3 color;
+    float padding2;
     vec2 uvmap;
+    vec2 padding3;
 };
 
 layout(buffer_reference, scalar) buffer VertexBuffer {
@@ -100,7 +104,7 @@ void main()
   vec3 lighting = ndl * vec3(1.0, 1.0, 1.0);
   vec3 ambient = vec3(0.1, 0.1, 0.1);
   // vec3 object_color = vec3(0.0, 1.0, 0.0);
-  vec3 color = object_color*(lighting + ambient);
+  vec3 color = clamp(object_color*(lighting + ambient), 0.0, 1.0);
 
   // For debugging
 //   color = position.xyz;
