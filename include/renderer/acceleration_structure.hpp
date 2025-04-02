@@ -80,6 +80,7 @@ class TopLevelAccelerationStructure {
     private:
     // Need these for freeing resources
     vk::Device & device;
+    VmaAllocator & allocator;
     vk::detail::DispatchLoaderDynamic & dl;
     int queue_family_index;
     vk::CommandPool & command_pool;
@@ -108,13 +109,42 @@ class TopLevelAccelerationStructure {
     vk::Buffer instance_data_buffer;
     VmaAllocation instance_data_allocation;
 
+    // Vulkan Acc Instance buffer
+    vk::Buffer tlas_instance_buffer;
+    VmaAllocation tlas_instance_allocation;
+
     TopLevelAccelerationStructure(vk::Device & device, 
+        VmaAllocator & allocator,
         vk::detail::DispatchLoaderDynamic & dl,
         vk::CommandPool & command_pool,
         int queue_family_index): 
-         device(device), dl(dl), 
+         device(device), allocator(allocator), dl(dl), 
          command_pool(command_pool), 
          queue_family_index(queue_family_index) { 
+    }
+
+    ~TopLevelAccelerationStructure() {
+
+        // This assumes everything went well and is initialized
+        device.destroyAccelerationStructureKHR(structure, nullptr, dl);
+
+        for (auto& mesh : meshes) {
+            // Destroy the BLAS
+            auto it = blas.find(&mesh.second);
+            if (it != blas.end()) {
+                device.destroyAccelerationStructureKHR(it->second.as, nullptr, dl);
+                vmaDestroyBuffer(allocator, it->second.buffer, it->second.allocation);
+            }
+            // Destroy the mesh buffers
+            vmaDestroyBuffer(allocator, mesh.second.vertex_buffer, mesh.second.vertex_allocation);
+            vmaDestroyBuffer(allocator, mesh.second.index_buffer, mesh.second.index_allocation);
+        }
+
+        vmaDestroyBuffer(allocator, tlas_instance_buffer, tlas_instance_allocation);
+        vmaDestroyBuffer(allocator, buffer, allocation);
+        vmaDestroyBuffer(allocator, mesh_data_buffer, mesh_data_allocation);
+        vmaDestroyBuffer(allocator, instance_data_buffer, instance_data_allocation);
+        
 
     }
     

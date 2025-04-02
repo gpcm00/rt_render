@@ -285,7 +285,9 @@ class Renderer {
     */
 
     void cleanup_vulkan() {
+        vmaDestroyBuffer(allocator, sbt.buffer, sbt.allocation);
         pipeline.reset();
+        device.destroyCommandPool(general_command_pool);
         vmaDestroyAllocator(allocator);
         device.destroy();
         instance.destroySurfaceKHR(surface);
@@ -427,6 +429,8 @@ class Renderer {
         if (swapchain) {
             swapchain.reset();
         }
+        tlas.reset();
+        scene.reset();
         cleanup_vulkan();
         std::cout << "Renderer destroyed" << std::endl;
     }

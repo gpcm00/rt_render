@@ -295,7 +295,8 @@ void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
     // create_device_buffer(tlas.buffer, tlas.memory, instances.data(), size, usage);
     auto [as_buffer, as_allocation] = 
         create_device_buffer_with_data(instances.data(), size, usage);
-
+    tlas->tlas_instance_buffer = as_buffer;
+    tlas->tlas_instance_allocation = as_allocation;
 
     vk::DeviceOrHostAddressConstKHR instance_address{};
     instance_address.deviceAddress = get_device_address(as_buffer);
@@ -385,7 +386,7 @@ void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
 void Renderer::load_scene(std::string file_path) {
     scene = std::make_unique<Scene>(file_path);
 
-    tlas = std::make_unique<TopLevelAccelerationStructure>(device, dl, 
+    tlas = std::make_unique<TopLevelAccelerationStructure>(device, allocator, dl, 
         general_command_pool, graphics_queue_family_index);
     auto & meshes = tlas->meshes; // it's called meshes but it holds primitive
     tlas->mesh_data.resize(scene->num_primitives()); // also per-primitive data
