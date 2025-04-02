@@ -40,9 +40,10 @@ class InstanceBuffer {
     public:
     MeshBuffer* mesh_buffer;
     glm::mat4 transformation;
+    uint32_t instance_id;
 
-    InstanceBuffer(MeshBuffer* mesh_buffer, glm::mat4 & transformation): 
-        mesh_buffer(mesh_buffer), transformation(transformation) { }
+    InstanceBuffer(MeshBuffer* mesh_buffer, glm::mat4 & transformation, uint32_t instance_id): 
+        mesh_buffer(mesh_buffer), transformation(transformation), instance_id(instance_id) { }
 };
 
 

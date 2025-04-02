@@ -269,14 +269,15 @@ void Renderer::create_TLAS(TopLevelAccelerationStructure * tlas) {
     vk::BufferUsageFlags usage;
     
     std::vector<vk::AccelerationStructureInstanceKHR> instances;
-    uint32_t instance_index = 0;
+    // uint32_t instance_index = 0;
     for (auto& object: tlas->instance_buffers) {
         vk::TransformMatrixKHR transform = from_mat4(object.transformation);
         AccelerationBuffer current_blas = tlas->blas[object.mesh_buffer];
 
         vk::AccelerationStructureInstanceKHR instance{};
         instance.transform = transform;
-        instance.instanceCustomIndex = instance_index++;
+        // instance.instanceCustomIndex = instance_index++;
+        instance.instanceCustomIndex = object.instance_id;
         instance.mask = 0xFF;
         instance.instanceShaderBindingTableRecordOffset = 0;
         instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; //
@@ -407,7 +408,7 @@ void Renderer::load_scene(std::string file_path) {
             create_BLAS(tlas.get(), &it->second);
         } 
 
-        tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.global_transformation));
+        tlas->instance_buffers.emplace_back(InstanceBuffer(&it->second, object.global_transformation, tlas->instance_data.size()));
         tlas->instance_data.push_back(InstanceData{
             object.mesh->mesh_id
         });

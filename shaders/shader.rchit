@@ -55,8 +55,8 @@ void main()
 
   // vec3 light_pos = vec3(-10.0, 10.0, 0.0); // test light position
 //   vec3 light_pos = vec3(-4.0, 4.0, -2.0); // test light position
-  vec3 light_pos = vec3(-40.0, 40.0, -20.0); // test light position
-
+//   vec3 light_pos = vec3(40.0, 40.0, -20.0); // test light position
+  vec3 light_pos = vec3(0, 40, 0); // test light position
   uint mesh_id = instances[gl_InstanceCustomIndexEXT].mesh_id;
   Mesh mesh = meshes[mesh_id];
 
@@ -95,9 +95,10 @@ void main()
 
   // wack lighting model for debugging
 
-  vec3 position = vec3(gl_ObjectToWorldEXT * vec4(local_position, 1.0));
-  vec3 normal = normalize(vec3(local_normal * gl_ObjectToWorldEXT));
-
+    vec3 position = vec3(gl_ObjectToWorldEXT * vec4(local_position, 1.0));
+    vec3 normal = normalize(vec3(local_normal * gl_WorldToObjectEXT));
+    // mat3 normal_matrix = transpose(mat3(gl_WorldToObjectEXT));
+    // vec3 normal = normalize(normal_matrix * local_normal);
 
   vec3 light_dir = normalize(light_pos - position);
   float ndl = max(dot(normal, light_dir), 0.0);
