@@ -35,6 +35,8 @@ class TextureMap {
     
     TextureMap() = default;
     TextureMap(tinygltf::Image & image, TextureType texture_type);
+    TextureMap(glm::vec4 & value, TextureType texture_type);
+
 
     uint8_t* data() { return map.data(); }
     int height() { return h; } 
@@ -87,6 +89,11 @@ class Material {
             std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::baseColorTexture));
             std::cout << "\tBase color: " << model.images[i].uri << std::endl;
+        }
+        else {
+            // Create a 1x1 texture with the base color
+            glm::vec4 base_color_vec(base_color[0], base_color[1], base_color[2], base_color[3]);
+            textures.push_back(TextureMap(base_color_vec, TextureMap::TextureType::baseColorTexture));
         }
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {

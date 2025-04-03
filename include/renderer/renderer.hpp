@@ -522,7 +522,6 @@ class Renderer {
     }
 
     void create_textures() {
-        // Material current = scene->material(0);
         TextureMap uvmap;
         uint32_t n_material = 0;
         for (; n_material < scene->material_size(); n_material++) {
@@ -534,8 +533,7 @@ class Renderer {
                 }
             }
         }
-        
-		// Update descriptor image info member that can be used for setting up descriptor sets
+        std::cout << "Created " << images.images_memory.size() << " base color textures" << std::endl;
     }
 
     public:
@@ -555,8 +553,8 @@ class Renderer {
         // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
         // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
-        // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
-        load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
+        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
+        // load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
         // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
 
         frame_setup();
