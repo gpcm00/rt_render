@@ -106,7 +106,7 @@ void main()
     //   vec3 ambient = vec3(0.1, 0.1, 0.1);
     uint texture_id = mesh.material_id;
     vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
-    base_color = decode_sRGB(base_color);
+    // base_color = decode_sRGB(base_color);
     vec3 normal_map = texture(nonuniformEXT(normal_tex[texture_id]), uv).xyz;
     vec3 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).rgb;
     // metalness should be B channel and roughness should be G channel
@@ -115,7 +115,7 @@ void main()
     float roughness = metalness_roughness.g;
 
     vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
-    emissive = decode_sRGB(emissive);
+    // emissive = decode_sRGB(emissive);
     
     // Debugging
     // object_color = normal_map;
