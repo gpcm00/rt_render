@@ -29,6 +29,7 @@ layout(buffer_reference, scalar) buffer IndexBuffer {
 struct Mesh {
     VertexBuffer vertex;
     IndexBuffer index;
+    uint material_id;
 };
 
 layout(scalar, set = 0, binding = 3) buffer Meshes {
@@ -42,6 +43,8 @@ struct Instance {
 layout(scalar, set = 0, binding = 4) buffer Instances {
     Instance instances[];
 };
+
+layout(set = 0, binding = 5) uniform sampler2D textures[];
 
 // layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
@@ -93,6 +96,12 @@ void main()
       v2.color * weights.z
   );
 
+  vec2 uv = (
+      v0.uvmap * weights.x +
+      v1.uvmap * weights.y +
+      v2.uvmap * weights.z
+  );
+
   // wack lighting model for debugging
 
     vec3 position = vec3(gl_ObjectToWorldEXT * vec4(local_position, 1.0));
@@ -105,6 +114,10 @@ void main()
   vec3 lighting = ndl * vec3(1.0, 1.0, 1.0);
   vec3 ambient = vec3(0.1, 0.1, 0.1);
   // vec3 object_color = vec3(0.0, 1.0, 0.0);
+  uint texture_id = mesh.material_id;
+  // uint texture_id = 0;
+  vec3 tex_color = texture(nonuniformEXT(textures[texture_id]), uv).xyz;
+  object_color =  tex_color;
   vec3 color = clamp(object_color*(lighting + ambient), 0.0, 1.0);
 
   // For debugging

@@ -67,9 +67,11 @@ struct TopAccelerationBuffer {
 };
 */
 
+// This is really PrimitiveData and should be renamed
 struct MeshData {
     vk::DeviceAddress vertex;
     vk::DeviceAddress index;
+    uint32_t material_id;
 };
 
 struct InstanceData {

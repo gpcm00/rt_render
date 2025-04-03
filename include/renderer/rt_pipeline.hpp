@@ -69,12 +69,22 @@ public:
         ds_info.flags = vk::DescriptorSetLayoutCreateFlags();
         device.createDescriptorSetLayout(&ds_info, nullptr, &descriptor_set_layout);
 
+        vk::DescriptorBindingFlags binding_flags = vk::DescriptorBindingFlagBits::ePartiallyBound | 
+            vk::DescriptorBindingFlagBits::eVariableDescriptorCount |
+            vk::DescriptorBindingFlagBits::eUpdateAfterBind;
+        
+        vk::DescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info;
+        std::vector<vk::DescriptorBindingFlags> flags(bindings.size(), binding_flags);
+        binding_flags_info.bindingCount = static_cast<uint32_t>(bindings.size());
+        binding_flags_info.pBindingFlags = flags.data();
+
         // Create pipeline layout
         vk::PipelineLayoutCreateInfo layout_info;
         layout_info.setLayoutCount = 1;
         layout_info.pSetLayouts = &descriptor_set_layout;
         layout_info.pushConstantRangeCount = 0; // No push constants for now
         layout_info.pPushConstantRanges = nullptr;
+        layout_info.pNext = &binding_flags_info; 
 
         if (device.createPipelineLayout(&layout_info, nullptr, &layout) != vk::Result::eSuccess) {
             throw std::runtime_error("Failed to create pipeline layout");

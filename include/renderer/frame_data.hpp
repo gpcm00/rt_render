@@ -201,11 +201,16 @@ common_data(common_data), device(common_data->device), width(width), height(heig
     pool_size2.type = vk::DescriptorType::eStorageImage;
     pool_size2.descriptorCount = 1;
 
-    const auto pool_sizes = std::array{pool_size, pool_size2};
+    vk::DescriptorPoolSize pool_size3{};
+    pool_size3.type = vk::DescriptorType::eCombinedImageSampler;
+    pool_size3.descriptorCount = 1024;
+
+
+    const auto pool_sizes = std::array{pool_size, pool_size2, pool_size3};
     
     vk::DescriptorPoolCreateInfo descriptor_pool_info{};
     descriptor_pool_info.maxSets = 10;
-    descriptor_pool_info.poolSizeCount = 1;
+    descriptor_pool_info.poolSizeCount = 3;
     descriptor_pool_info.pPoolSizes = pool_sizes.data();
 
 

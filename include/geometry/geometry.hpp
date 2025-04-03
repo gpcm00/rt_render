@@ -20,7 +20,8 @@
 
 
 class TextureMap {
-    uint8_t* map = nullptr;
+    // uint8_t* map = nullptr;
+    std::vector<unsigned char> map;
     int w = 0, h = 0, c = 0;
     
     public:
@@ -33,9 +34,9 @@ class TextureMap {
     };
     
     TextureMap() = default;
-    TextureMap(std::string file_path, TextureType texture_type);
+    TextureMap(tinygltf::Image & image, TextureType texture_type);
 
-    uint8_t* data() { return map; }
+    uint8_t* data() { return map.data(); }
     int height() { return h; } 
     int width() { return w; } 
     int channels() { return c; } 
@@ -83,9 +84,8 @@ class Material {
         if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
             uint32_t texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
             uint32_t i = model.textures[texture_index].source;
-
             std::string file_path = (dir / model.images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::baseColorTexture));
+            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::baseColorTexture));
             std::cout << "\tBase color: " << model.images[i].uri << std::endl;
         }
 
@@ -93,7 +93,7 @@ class Material {
             uint32_t texture_index = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
             uint32_t i = model.textures[texture_index].source;
             std::string file_path = (dir / model.images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::metallicRoughness));
+            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::metallicRoughness));
             std::cout << "\tMetallic Roughness Texture: " << model.images[i].uri << std::endl;
         }
 
@@ -102,7 +102,7 @@ class Material {
             uint32_t i = model.textures[texture_index].source;
 
             std::string file_path = (dir / model.images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::normalTexture));
+            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::normalTexture));
             std::cout << "\tNormal Texture: " << model.images[i].uri << std::endl;
         }
 
@@ -111,7 +111,7 @@ class Material {
             uint32_t i = model.textures[texture_index].source;
 
             std::string file_path = (dir / model.images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::emissiveTexture));
+            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::emissiveTexture));
             std::cout << "\tEmissive Texture: " << model.images[i].uri << std::endl;
         }
 
@@ -120,7 +120,7 @@ class Material {
             uint32_t i = model.textures[texture_index].source;
 
             std::string file_path = (dir / model.images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::occlusionTexture));
+            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::occlusionTexture));
             std::cout << "\tOcclusion Texture: " << model.images[i].uri << std::endl;
         }
     }
@@ -264,6 +264,10 @@ class Scene {
 
     size_t material_size() {
         return materials.size();
+    }
+
+    std::vector<Material> & get_materials() {
+        return materials;
     }
 
     // std::vector<Mesh>& get_geometries() {

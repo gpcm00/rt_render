@@ -26,6 +26,7 @@ static vk::WriteDescriptorSet populate_write_descriptor(vk::Buffer buffer, vk::D
     return wds;
 }
 
+/*
 static void submit_copy_command(Command_Pool& pool, vk::Buffer src, vk::Buffer dst, vk::DeviceSize size) {
     vk::CommandBuffer copy_command = pool.single_command_buffer(vk::CommandBufferLevel::ePrimary);
 
@@ -43,6 +44,7 @@ static void submit_copy_command(Command_Pool& pool, vk::Buffer src, vk::Buffer d
     pool.submit_command(copy_command);
     pool.free_command_buffer(copy_command);
 }
+*/
 /*
 void Renderer::create_descriptor_sets() {
     std::vector<vk::DescriptorPoolSize> pool_sizes {
@@ -96,6 +98,7 @@ void Renderer::create_ubo() {
 }
 */
 
+/*
 void Renderer::create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* host_buffer, 
                                                             vk::DeviceSize size, vk::BufferUsageFlags usage) {
     vk::Buffer staging_buffer;
@@ -115,7 +118,7 @@ void Renderer::create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory
     device.destroyBuffer(staging_buffer);
     device.freeMemory(staging_buffer_memory);
 }
-
+*/
 
 void Renderer::create_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, vk::DeviceSize size, vk::BufferUsageFlags usage, 
                                         vk::MemoryPropertyFlags properties, vk::SharingMode mode) {
@@ -400,10 +403,17 @@ void Renderer::load_scene(std::string file_path) {
                 if (it == meshes.end()) {
                     throw std::runtime_error("Failed to create mesh buffer");
                 }
+
+                if (primitive.material_index == -1) {
+                    std::cout << "Warning: primitive " << primitive.primitive_id << " has no material" << std::endl;
+                } else if (primitive.material_index >= scene->material_size()) {
+                    std::cout << "Warning: primitive " << primitive.primitive_id << " has invalid material index" << std::endl;
+                }
     
                 tlas->mesh_data[primitive.primitive_id] = MeshData{
                     get_device_address(it->second.vertex_buffer),
-                    get_device_address(it->second.index_buffer)
+                    get_device_address(it->second.index_buffer),
+                    static_cast<uint32_t>(std::max(0,primitive.material_index)),
                 };
     
                 create_BLAS(tlas.get(), &it->second);
@@ -430,6 +440,9 @@ void Renderer::load_scene(std::string file_path) {
     tlas->mesh_data_allocation = mesh_data_allocation;
 
     create_TLAS(tlas.get());
+
+    // Upload texture data
+    create_textures();
 }
 
 void Renderer::create_sbt() {

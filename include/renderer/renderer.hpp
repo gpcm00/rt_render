@@ -59,7 +59,7 @@ class Renderer {
     // std::unordered_map<const Mesh*, MeshBuffer> meshes{};
     // std::vector<InstanceBuffer> objects{};
 
-    Command_Pool pool;
+    // Command_Pool pool;
     vk::CommandPool general_command_pool;
     // Pipeline pipeline;
 
@@ -190,9 +190,20 @@ class Renderer {
         acc_features.accelerationStructure = true;
         acc_features.pNext = &address_features;
 
+        // For bindless descriptors
+        vk::PhysicalDeviceDescriptorIndexingFeatures indexing_features = {};
+        indexing_features.shaderSampledImageArrayNonUniformIndexing = true;
+        indexing_features.runtimeDescriptorArray = true;
+        indexing_features.descriptorBindingVariableDescriptorCount = true;
+        indexing_features.descriptorBindingPartiallyBound = true;
+        indexing_features.pNext = &acc_features;
+
+
+
         // nv ray tracing validation
         vk::PhysicalDeviceRayTracingValidationFeaturesNV validation_features;
-        validation_features.pNext = &acc_features;
+        validation_features.pNext = &indexing_features;
+
 
         vk::PhysicalDeviceFeatures2 device_features2;
         device_features2.pNext = &validation_features;
@@ -222,7 +233,7 @@ class Renderer {
 
         device = physical_device.createDevice(device_create_info);
 
-        pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
+        // pool = Command_Pool(&device, &physical_device, vk::QueueFlagBits::eGraphics);
         // pool = Command_Pool((const vk::Device*)&device, (vk::PhysicalDevice)physical_device, vk::QueueFlagBits::eGraphics);
         // Create general command pool
         vk::CommandPoolCreateInfo pool_info{};
@@ -248,7 +259,8 @@ class Renderer {
             {1, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // mesh data            
-            {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR} // instance data
+            {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // instance data
+            {5, vk::DescriptorType::eCombinedImageSampler, 1024, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // texture data
         };
 
         // Create pipeline
@@ -311,7 +323,7 @@ class Renderer {
     
     // void create_ubo();
 
-    void create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* vertices, vk::DeviceSize size, vk::BufferUsageFlags usage);
+    // void create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory, const void* vertices, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
     std::pair<vk::Buffer, VmaAllocation> create_staging_buffer_with_data(const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage) {
         vk::Buffer staging_buffer;
@@ -402,27 +414,18 @@ class Renderer {
 
     void create_TLAS(TopLevelAccelerationStructure * tlas);
 
-    void create_textures() {
-        // Material current = scene->material(0);
-        TextureMap uvmap;
-        uint32_t n_material = 0;
-        for (; n_material < scene->material_size(); n_material++) {
-            for (auto& texture : scene->material(n_material)) {
-                uvmap = texture;
-                if (uvmap.type() == TextureMap::TextureType::baseColorTexture) {
-                    break;
-                }
-            }
-        }
+    void create_image(TextureMap& uvmap) {
         VkDeviceSize size = uvmap.width() * uvmap.height() * uvmap.channels();
 
-        auto [staging_buffer, vma_allocation] = create_staging_buffer_with_data(uvmap.data(), size, vk::BufferUsageFlagBits::eTransferSrc);
+        auto [staging_buffer, staging_allocation] = create_staging_buffer_with_data(uvmap.data(), size, vk::BufferUsageFlagBits::eTransferSrc);
         ImageStorage::Textures current_memory;
         
         vk::ImageCreateInfo create_info = images.get_create_info(uvmap.width(), uvmap.height());
+        create_info.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
 
         VmaAllocationCreateInfo allocInfo{};
-        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY; 
+        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
         if (vmaCreateImage(allocator, reinterpret_cast<const VkImageCreateInfo*>(&create_info), 
                     &allocInfo, reinterpret_cast<VkImage*>(&current_memory.image), &current_memory.memory, nullptr) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create image with VMA!");
@@ -432,7 +435,8 @@ class Renderer {
                 general_command_pool, vk::CommandBufferLevel::ePrimary, 1)).front();
         
         command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-
+        
+        // Transition texture image to transfer destination optimal
         vk::ImageMemoryBarrier pre_barrier;
         pre_barrier.oldLayout = vk::ImageLayout::eUndefined;
         pre_barrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
@@ -462,12 +466,12 @@ class Renderer {
         command_buffer.copyBufferToImage(staging_buffer, current_memory.image, vk::ImageLayout::eTransferDstOptimal, regions.size(), regions.data());
         
         vk::ImageMemoryBarrier pos_barrier;
-        pos_barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+        pos_barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
         pos_barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         pos_barrier.image = current_memory.image;
         pos_barrier.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
         pos_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-        pos_barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+        pos_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;;
 
         command_buffer.pipelineBarrier(
             vk::PipelineStageFlagBits::eAllCommands, 
@@ -483,10 +487,11 @@ class Renderer {
         submit_info.pCommandBuffers = &command_buffer;
         q.submit(1, &submit_info, nullptr);
         q.waitIdle();
-        pool.free_command_buffer(command_buffer);
+        device.freeCommandBuffers(general_command_pool, 1, &command_buffer);
         
-        vmaDestroyBuffer(allocator, staging_buffer, vma_allocation);
+        vmaDestroyBuffer(allocator, staging_buffer, staging_allocation);
 
+        // Create sampler
         vk::PhysicalDeviceProperties properties = physical_device.getProperties();
         vk::SamplerCreateInfo sampler_info{};
         sampler_info.sType = vk::StructureType::eSamplerCreateInfo;
@@ -499,22 +504,38 @@ class Renderer {
 		sampler_info.mipLodBias = 0.0f;
 		sampler_info.compareOp = vk::CompareOp::eNever;
 		sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-		sampler_info.anisotropyEnable = VK_TRUE;
+		// sampler_info.anisotropyEnable = VK_TRUE;
 		sampler_info.borderColor = vk::BorderColor::eFloatOpaqueBlack;
 
         current_memory.sampler = device.createSampler(sampler_info);
-            
-		vk::ImageViewCreateInfo view_create_info = {};
+        
+        // Create image view
+		vk::ImageViewCreateInfo view_create_info;
 		view_create_info.sType = vk::StructureType::eImageViewCreateInfo;
 		view_create_info.viewType = vk::ImageViewType::e2D;
 		view_create_info.format = vk::Format::eR8G8B8A8Unorm;
+        view_create_info.image = current_memory.image;
 		view_create_info.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
         current_memory.view = device.createImageView(view_create_info);
 
         images.images_memory.push_back(current_memory);
+    }
 
+    void create_textures() {
+        // Material current = scene->material(0);
+        TextureMap uvmap;
+        uint32_t n_material = 0;
+        for (; n_material < scene->material_size(); n_material++) {
+            for (auto& texture : scene->material(n_material)) {
+                uvmap = texture;
+                if (uvmap.type() == TextureMap::TextureType::baseColorTexture) {
+                    create_image(uvmap);
+                    break;
+                }
+            }
+        }
+        
 		// Update descriptor image info member that can be used for setting up descriptor sets
-
     }
 
     public:
@@ -536,7 +557,7 @@ class Renderer {
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
         // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
         load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
-
+        // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
 
         frame_setup();
 
@@ -550,6 +571,11 @@ class Renderer {
         }
         tlas.reset();
         scene.reset();
+        for (auto& image : images.images_memory) {
+            device.destroyImageView(image.view);
+            device.destroySampler(image.sampler);
+            vmaDestroyImage(allocator, image.image, image.memory);
+        }
         cleanup_vulkan();
         std::cout << "Renderer destroyed" << std::endl;
     }
@@ -654,7 +680,13 @@ class Renderer {
             texture_desc_write.dstBinding = 5;
             texture_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 
- 
+            std::vector<vk::DescriptorImageInfo> tex_infos;
+            for (auto & image : images.images_memory) {
+                tex_infos.push_back(vk::DescriptorImageInfo(image.sampler, image.view, vk::ImageLayout::eShaderReadOnlyOptimal));
+            }
+            
+            texture_desc_write.pImageInfo = tex_infos.data();
+            texture_desc_write.descriptorCount = static_cast<uint32_t>(tex_infos.size());
 
             // Update descriptor set
             vk::WriteDescriptorSet writes[] = {
@@ -662,9 +694,10 @@ class Renderer {
                 img_desc_write, 
                 cam_desc_write,
                 mesh_desc_write,
-                instance_desc_write
+                instance_desc_write,
+                texture_desc_write
             };
-            device.updateDescriptorSets(5, writes, 0, nullptr);
+            device.updateDescriptorSets(6, writes, 0, nullptr);
 
 
 

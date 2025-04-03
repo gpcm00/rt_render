@@ -15,12 +15,16 @@
 
 namespace fs = std::filesystem;
 
-TextureMap::TextureMap(std::string file_path, TextureType texture_type) : texture_type(texture_type) {
-    map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
+TextureMap::TextureMap(tinygltf::Image& image, TextureType texture_type) : texture_type(texture_type) {
+    // map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
+    map = image.image;
+    w = image.width;
+    h = image.height;
+    c = image.component;
 }
 
 void TextureMap::free_texture_map() {
-    stbi_image_free(map);
+    // stbi_image_free(map);
 }
 
 static glm::mat4 get_node_transform(const tinygltf::Node& node) {

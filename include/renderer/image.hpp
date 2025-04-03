@@ -31,5 +31,7 @@ class ImageStorage {
         imageInfo.usage = vk::ImageUsageFlagBits::eSampled;
         imageInfo.samples = vk::SampleCountFlagBits::e1; 
         imageInfo.sharingMode = vk::SharingMode::eExclusive;
+
+        return imageInfo;
     }
 };
