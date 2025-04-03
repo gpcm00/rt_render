@@ -34,7 +34,7 @@ class RTCamera {
     }
 
     void set_fov(float fov_degrees) {
-        fov = glm::radians(90.0f/2.0f);
+        fov = glm::radians(fov_degrees/2.0f);
     }
 
     void set_aspect_ratio(float ratio) {
