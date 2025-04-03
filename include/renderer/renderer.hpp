@@ -269,9 +269,9 @@ class Renderer {
             allocator,
             dl,
             bindings,
-            "shaders/shader.rgen.spv", 
-            "shaders/shader.rmiss.spv", 
-            "shaders/shader.rchit.spv"
+            "shaders/pt_shader.rgen.spv", 
+            "shaders/pt_shader.rmiss.spv", 
+            "shaders/pt_shader.rchit.spv"
         );
         
     }
