@@ -36,6 +36,8 @@ class TextureMap {
     TextureMap() = default;
     TextureMap(tinygltf::Image & image, TextureType texture_type);
     TextureMap(glm::vec4 & value, TextureType texture_type);
+    TextureMap(glm::vec3 & value, TextureType texture_type);
+    TextureMap(float & value, TextureType texture_type);
 
 
     uint8_t* data() { return map.data(); }
@@ -96,14 +98,6 @@ class Material {
             textures.push_back(TextureMap(base_color_vec, TextureMap::TextureType::baseColorTexture));
         }
 
-        if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
-            uint32_t texture_index = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
-            uint32_t i = model.textures[texture_index].source;
-            std::string file_path = (dir / model.images[i].uri).string();
-            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::metallicRoughness));
-            std::cout << "\tMetallic Roughness Texture: " << model.images[i].uri << std::endl;
-        }
-
         if (material.normalTexture.index  >= 0) {
             uint32_t texture_index = material.normalTexture.index;
             uint32_t i = model.textures[texture_index].source;
@@ -111,6 +105,10 @@ class Material {
             std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::normalTexture));
             std::cout << "\tNormal Texture: " << model.images[i].uri << std::endl;
+        }
+        else {
+            glm::vec3 normal_map_vec(0.0f, 0.0f, 1.0f);
+            textures.push_back(TextureMap(normal_map_vec, TextureMap::TextureType::normalTexture));
         }
 
         if (material.emissiveTexture.index  >= 0) {
@@ -121,6 +119,23 @@ class Material {
             textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::emissiveTexture));
             std::cout << "\tEmissive Texture: " << model.images[i].uri << std::endl;
         }
+        else {
+            glm::vec3 emissive_vec(emissive[0], emissive[1], emissive[2]);
+            textures.push_back(TextureMap(emissive_vec, TextureMap::TextureType::emissiveTexture));
+        }
+
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
+            uint32_t texture_index = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            uint32_t i = model.textures[texture_index].source;
+            std::string file_path = (dir / model.images[i].uri).string();
+            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::metallicRoughness));
+            std::cout << "\tMetallic Roughness Texture: " << model.images[i].uri << std::endl;
+        }
+        else {
+            glm::vec4 metallic_roughness_vec(metallic, roughness, 0.0f, 0.0f);
+            textures.push_back(TextureMap(metallic_roughness_vec, TextureMap::TextureType::metallicRoughness));
+        }
+
 
         if (material.occlusionTexture.index  >= 0) {
             uint32_t texture_index = material.occlusionTexture.index;
@@ -129,6 +144,10 @@ class Material {
             std::string file_path = (dir / model.images[i].uri).string();
             textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::occlusionTexture));
             std::cout << "\tOcclusion Texture: " << model.images[i].uri << std::endl;
+        }
+        else {
+            float occlusion = 1.0f;
+            textures.push_back(TextureMap(occlusion, TextureMap::TextureType::occlusionTexture));
         }
     }
 

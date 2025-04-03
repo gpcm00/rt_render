@@ -32,7 +32,24 @@ TextureMap::TextureMap(glm::vec4 & value, TextureType texture_type): texture_typ
     map[1] = static_cast<unsigned char>(value.g * 255.0f);
     map[2] = static_cast<unsigned char>(value.b * 255.0f);
     map[3] = static_cast<unsigned char>(value.a * 255.0f);
+}
 
+TextureMap::TextureMap(glm::vec3 & value, TextureType texture_type): texture_type(texture_type) {
+    w = 1;
+    h = 1;
+    c = 3;
+    map.resize(w * h * c);
+    map[0] = static_cast<unsigned char>(value.r * 255.0f);
+    map[1] = static_cast<unsigned char>(value.g * 255.0f);
+    map[2] = static_cast<unsigned char>(value.b * 255.0f);
+}
+
+TextureMap::TextureMap(float & value, TextureType texture_type): texture_type(texture_type) {
+    w = 1;
+    h = 1;
+    c = 1;
+    map.resize(w * h * c);
+    map[0] = static_cast<unsigned char>(value * 255.0f);
 }
 
 void TextureMap::free_texture_map() {
