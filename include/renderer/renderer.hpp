@@ -608,6 +608,8 @@ class Renderer {
         create_sbt();
 
         // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
+        // load_scene("glTF-Sample-Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
+        // load_scene("glTF-Sample-Assets/Models/DamagedHelmet/glTF/DamagedHelmet.gltf");
         // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
         load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
