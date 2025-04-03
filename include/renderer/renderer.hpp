@@ -260,7 +260,10 @@ class Renderer {
             {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // mesh data            
             {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // instance data
-            {5, vk::DescriptorType::eCombinedImageSampler, 1024, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // texture data
+            {5, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // color texture data
+            {6, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // normal texture data
+            {7, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // metallic roughness texture data
+            {8, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // emissive texture data
         };
 
         // Create pipeline
@@ -414,13 +417,52 @@ class Renderer {
 
     void create_TLAS(TopLevelAccelerationStructure * tlas);
 
-    void create_image(TextureMap& uvmap) {
+    vk::Format get_vk_format(TextureMap::TextureType format) {
+        switch (format) {
+            case TextureMap::TextureType::baseColorTexture:
+                return vk::Format::eR8G8B8A8Unorm;
+            case TextureMap::TextureType::normalTexture:
+                return vk::Format::eR8G8B8A8Unorm;
+            case TextureMap::TextureType::metallicRoughnessTexture:
+                return vk::Format::eR8G8B8A8Unorm;
+            case TextureMap::TextureType::emissiveTexture:
+                return vk::Format::eR8G8B8A8Unorm;
+            default:
+                throw std::runtime_error("Unsupported texture format");
+        }
+    }
+
+    void verify_format(TextureMap& map, vk::Format format) {
+        if (map.type() == TextureMap::TextureType::baseColorTexture) {
+            if (map.channels() != 4) {
+                throw std::runtime_error("Base color texture must have 4 channels");
+            }
+        } else if (map.type() == TextureMap::TextureType::normalTexture) {
+            if (map.channels() != 4) {
+                throw std::runtime_error("Normal texture must have 4 channels");
+            }
+        } else if (map.type() == TextureMap::TextureType::metallicRoughnessTexture) {
+            if (map.channels() != 4) {
+                throw std::runtime_error("Metallic roughness texture must have 4 channels");
+            }
+        } else if (map.type() == TextureMap::TextureType::emissiveTexture) {
+            if (map.channels() != 4) {
+                throw std::runtime_error("Emissive texture must have 4 channel");
+            }
+        }
+    }
+
+    ImageStorage::Textures create_image(TextureMap& uvmap) {
+
+        auto texture_format = get_vk_format(uvmap.type());
+        verify_format(uvmap, texture_format);
+
         VkDeviceSize size = uvmap.width() * uvmap.height() * uvmap.channels();
 
         auto [staging_buffer, staging_allocation] = create_staging_buffer_with_data(uvmap.data(), size, vk::BufferUsageFlagBits::eTransferSrc);
         ImageStorage::Textures current_memory;
         
-        vk::ImageCreateInfo create_info = images.get_create_info(uvmap.width(), uvmap.height());
+        vk::ImageCreateInfo create_info = images.get_create_info(uvmap.width(), uvmap.height(), texture_format);
         create_info.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
 
         VmaAllocationCreateInfo allocInfo{};
@@ -513,27 +555,42 @@ class Renderer {
 		vk::ImageViewCreateInfo view_create_info;
 		view_create_info.sType = vk::StructureType::eImageViewCreateInfo;
 		view_create_info.viewType = vk::ImageViewType::e2D;
-		view_create_info.format = vk::Format::eR8G8B8A8Unorm;
+		view_create_info.format = texture_format; //vk::Format::eR8G8B8A8Unorm;
         view_create_info.image = current_memory.image;
 		view_create_info.subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
         current_memory.view = device.createImageView(view_create_info);
 
-        images.images_memory.push_back(current_memory);
+        // images.images_memory.push_back(current_memory);
+        return current_memory;
     }
 
+
+
     void create_textures() {
-        TextureMap uvmap;
+        // TextureMap uvmap;
         uint32_t n_material = 0;
         for (; n_material < scene->material_size(); n_material++) {
             for (auto& texture : scene->material(n_material)) {
-                uvmap = texture;
-                if (uvmap.type() == TextureMap::TextureType::baseColorTexture) {
-                    create_image(uvmap);
-                    break;
+                // uvmap = texture;
+                if (texture.type() == TextureMap::TextureType::baseColorTexture) {
+                    images.base_color_textures.push_back(create_image(texture));
+                }
+                else if (texture.type() == TextureMap::TextureType::normalTexture) {
+                    images.normal_textures.push_back(create_image(texture));
+                } else if (texture.type() == TextureMap::TextureType::metallicRoughnessTexture) {
+                    images.metallic_roughness_textures.push_back(create_image(texture));
+                } else if (texture.type() == TextureMap::TextureType::emissiveTexture) {
+                    images.emissive_textures.push_back(create_image(texture));
+                } 
+                else {
+                    std::cout << "Unknown texture type" << std::endl;
                 }
             }
         }
-        std::cout << "Created " << images.images_memory.size() << " base color textures" << std::endl;
+        std::cout << "Created " << images.base_color_textures.size() << " base color textures" << std::endl;
+        std::cout << "Created " << images.normal_textures.size() << " normal textures" << std::endl;
+        std::cout << "Created " << images.metallic_roughness_textures.size() << " metallic textures" << std::endl;
+        std::cout << "Created " << images.emissive_textures.size() << " emissive textures" << std::endl;        
     }
 
     public:
@@ -569,7 +626,22 @@ class Renderer {
         }
         tlas.reset();
         scene.reset();
-        for (auto& image : images.images_memory) {
+        for (auto& image : images.base_color_textures) {
+            device.destroyImageView(image.view);
+            device.destroySampler(image.sampler);
+            vmaDestroyImage(allocator, image.image, image.memory);
+        }
+        for (auto & image: images.normal_textures) {
+            device.destroyImageView(image.view);
+            device.destroySampler(image.sampler);
+            vmaDestroyImage(allocator, image.image, image.memory);
+        }
+        for (auto & image: images.metallic_roughness_textures) {
+            device.destroyImageView(image.view);
+            device.destroySampler(image.sampler);
+            vmaDestroyImage(allocator, image.image, image.memory);
+        }
+        for (auto & image: images.emissive_textures) {
             device.destroyImageView(image.view);
             device.destroySampler(image.sampler);
             vmaDestroyImage(allocator, image.image, image.memory);
@@ -673,18 +745,57 @@ class Renderer {
             instance_info.range = sizeof(InstanceData) * tlas->instance_data.size();
             instance_desc_write.pBufferInfo = &instance_info;
 
+            // Base color texture descriptor
             vk::WriteDescriptorSet texture_desc_write;
             texture_desc_write.dstSet = descriptor_set;
             texture_desc_write.dstBinding = 5;
             texture_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 
             std::vector<vk::DescriptorImageInfo> tex_infos;
-            for (auto & image : images.images_memory) {
+            for (auto & image : images.base_color_textures) {
                 tex_infos.push_back(vk::DescriptorImageInfo(image.sampler, image.view, vk::ImageLayout::eShaderReadOnlyOptimal));
             }
             
             texture_desc_write.pImageInfo = tex_infos.data();
             texture_desc_write.descriptorCount = static_cast<uint32_t>(tex_infos.size());
+
+            // Normal texture descriptor
+            vk::WriteDescriptorSet normal_desc_write;
+            normal_desc_write.dstSet = descriptor_set;
+            normal_desc_write.dstBinding = 6;
+            normal_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+            std::vector<vk::DescriptorImageInfo> normal_tex_infos;
+            for (auto & image : images.normal_textures) {
+                normal_tex_infos.push_back(vk::DescriptorImageInfo(image.sampler, image.view, vk::ImageLayout::eShaderReadOnlyOptimal));
+            }
+            normal_desc_write.pImageInfo = normal_tex_infos.data();
+            normal_desc_write.descriptorCount = static_cast<uint32_t>(images.normal_textures.size());
+
+            // Metallic roughness texture descriptor
+            vk::WriteDescriptorSet metallic_desc_write;
+            metallic_desc_write.dstSet = descriptor_set;
+            metallic_desc_write.dstBinding = 7;
+            metallic_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+            std::vector<vk::DescriptorImageInfo> metallic_tex_infos;
+            for (auto & image : images.metallic_roughness_textures) {
+                metallic_tex_infos.push_back(vk::DescriptorImageInfo(image.sampler, image.view, vk::ImageLayout::eShaderReadOnlyOptimal));
+            }
+            metallic_desc_write.pImageInfo = metallic_tex_infos.data();
+            metallic_desc_write.descriptorCount = static_cast<uint32_t>(images.metallic_roughness_textures.size());
+
+            // Emissive texture descriptor
+            vk::WriteDescriptorSet emissive_desc_write;
+            emissive_desc_write.dstSet = descriptor_set;
+            emissive_desc_write.dstBinding = 8;
+            emissive_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+            std::vector<vk::DescriptorImageInfo> emissive_tex_infos;
+            for (auto & image : images.emissive_textures) {
+                emissive_tex_infos.push_back(vk::DescriptorImageInfo(image.sampler, image.view, vk::ImageLayout::eShaderReadOnlyOptimal));
+            }
+            emissive_desc_write.pImageInfo = emissive_tex_infos.data();
+            emissive_desc_write.descriptorCount = static_cast<uint32_t>(images.emissive_textures.size());
+
+
 
             // Update descriptor set
             vk::WriteDescriptorSet writes[] = {
@@ -693,12 +804,12 @@ class Renderer {
                 cam_desc_write,
                 mesh_desc_write,
                 instance_desc_write,
-                texture_desc_write
+                texture_desc_write,
+                normal_desc_write,
+                metallic_desc_write,
+                emissive_desc_write
             };
-            device.updateDescriptorSets(6, writes, 0, nullptr);
-
-
-
+            device.updateDescriptorSets(9, writes, 0, nullptr);
         }
 
 

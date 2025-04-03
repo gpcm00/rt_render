@@ -44,8 +44,10 @@ layout(scalar, set = 0, binding = 4) buffer Instances {
     Instance instances[];
 };
 
-layout(set = 0, binding = 5) uniform sampler2D textures[];
-
+layout(set = 0, binding = 5) uniform sampler2D base_color_tex[];
+layout(set = 0, binding = 6) uniform sampler2D normal_tex[];
+layout(set = 0, binding = 7) uniform sampler2D metalness_roughness_tex[]; // Check the format of this - it could be (nothing, mr, r, nothing) or (nothing, r, m, nothing)
+layout(set = 0, binding = 8) uniform sampler2D emissive_tex[];
 // layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
@@ -116,12 +118,21 @@ void main()
   // vec3 object_color = vec3(0.0, 1.0, 0.0);
   uint texture_id = mesh.material_id;
   // uint texture_id = 0;
-  vec3 tex_color = texture(nonuniformEXT(textures[texture_id]), uv).xyz;
-  object_color =  tex_color;
+  vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
+  vec3 normal_map = texture(nonuniformEXT(normal_tex[texture_id]), uv).xyz;
+  // again be careful with what the roughness/metalness texture is
+  vec2 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).yz;
+  vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
+
+  // Debugging
+  // object_color = normal_map;
+  // object_color =  vec3(0.0, metalness_roughness);
+  // object_color = emissive;
+
+  object_color = base_color;
+
   vec3 color = clamp(object_color*(lighting + ambient), 0.0, 1.0);
 
-  // For debugging
-//   color = position.xyz;
 
   payload = vec4(color, 1.0);
 }
