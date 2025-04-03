@@ -94,13 +94,30 @@ void main()
     vec3 local_position = v0.position * weights.x + v1.position * weights.y + v2.position * weights.z;
     vec3 object_color = v0.color * weights.x + v1.color * weights.y + v2.color * weights.z;
     vec2 uv = v0.uvmap * weights.x + v1.uvmap * weights.y + v2.uvmap * weights.z;
+    
+    
+    // Adapted from https://stackoverflow.com/questions/35723318/getting-the-tangent-for-a-object-space-to-texture-space
+    // and https://learnopengl.com/Advanced-Lighting/Normal-Mapping
+    vec3 delta_v1 = v1.position-v0.position;
+    vec3 delta_v2 = v2.position-v0.position;
+    
+    vec2  delta_uv1 = v1.uvmap-v0.uvmap;
+    vec2  delta_uv2 = v2.uvmap-v0.uvmap;
+    float r = 1.0f / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+    vec3  local_tangent = (delta_v1*delta_uv2.y - delta_v2 * delta_uv1.y) * r;
+
+
+
 
     vec3 position = vec3(gl_ObjectToWorldEXT * vec4(local_position, 1.0));
     vec3 normal = normalize(vec3(local_normal * gl_WorldToObjectEXT));
+    vec3 tangent = normalize(vec3(local_tangent * gl_WorldToObjectEXT));
+    vec3 bitangent = normalize(cross(normal, tangent)); // missing tangent.w
+    mat3 normal_matrix = mat3(tangent, bitangent, normal);
 
-    vec3 light_pos = vec3(0, 2, 0); // test light position
+    vec3 light_pos = vec3(5, 5, 0); // test light position
     vec3 light_dir = normalize(light_pos - position);
-    vec3 light_color = 5.0*vec3(1.0, 1.0, 1.0);
+    vec3 light_color = 8.0*vec3(1.0, 1.0, 1.0);
     float ndl = max(dot(normal, light_dir), 0.0);
     vec3 lighting = ndl * light_color;
     //   vec3 ambient = vec3(0.1, 0.1, 0.1);
@@ -108,6 +125,7 @@ void main()
     vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
     // base_color = decode_sRGB(base_color);
     vec3 normal_map = texture(nonuniformEXT(normal_tex[texture_id]), uv).xyz;
+    normal = normalize(normal_matrix * (normal_map * 2.0 - 1.0));
     vec3 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).rgb;
     // metalness should be B channel and roughness should be G channel
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
@@ -127,7 +145,7 @@ void main()
     float reflectance = 0.5f;
     vec3 f0 = 0.16 * reflectance * reflectance * (1.0 - metalness) + base_color * metalness;
     vec3 view = normalize(camera.position.xyz - position);
-    vec3 color = BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, 2.0*light_color);
+    vec3 color = BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_color);
 
     color += emissive;
 

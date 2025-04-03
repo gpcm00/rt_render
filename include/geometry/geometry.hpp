@@ -35,7 +35,7 @@ class TextureMap {
     
     TextureMap() = default;
     TextureMap(tinygltf::Image & image, TextureType texture_type);
-    TextureMap(glm::vec4 & value, TextureType texture_type);
+    TextureMap(glm::vec4 value, TextureType texture_type);
     // TextureMap(glm::vec3 & value, TextureType texture_type);
     // TextureMap(float & value, TextureType texture_type);
 

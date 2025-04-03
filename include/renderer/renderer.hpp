@@ -422,7 +422,7 @@ class Renderer {
             case TextureMap::TextureType::baseColorTexture:
                 return vk::Format::eR8G8B8A8Srgb;
             case TextureMap::TextureType::normalTexture:
-                return vk::Format::eR8G8B8A8Snorm;
+                return vk::Format::eR8G8B8A8Unorm;
             case TextureMap::TextureType::metallicRoughnessTexture:
                 return vk::Format::eR8G8B8A8Unorm;
             case TextureMap::TextureType::emissiveTexture:

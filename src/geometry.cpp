@@ -36,15 +36,28 @@ TextureMap::TextureMap(tinygltf::Image& image, TextureType texture_type) : textu
     }
 }
 
-TextureMap::TextureMap(glm::vec4 & value, TextureType texture_type): texture_type(texture_type) {
+TextureMap::TextureMap(glm::vec4 value, TextureType texture_type): texture_type(texture_type) {
+
     w = 1;
     h = 1;
     c = 4;
     map.resize(w * h * c);
-    map[0] = static_cast<unsigned char>(value.r * 255.0f);
-    map[1] = static_cast<unsigned char>(value.g * 255.0f);
-    map[2] = static_cast<unsigned char>(value.b * 255.0f);
-    map[3] = static_cast<unsigned char>(value.a * 255.0f);
+
+    if (texture_type == TextureType::normalTexture) {
+        unsigned char out_val = 255;
+        unsigned char zero_val = 128;
+        map[0] = zero_val;
+        map[1] = zero_val;
+        map[2] = out_val;
+        map[3] = zero_val;
+    }
+    else {
+        value *= 255.0f;
+        map[0] = static_cast<unsigned char>(value.r);
+        map[1] = static_cast<unsigned char>(value.g);
+        map[2] = static_cast<unsigned char>(value.b);
+        map[3] = static_cast<unsigned char>(value.a);
+    }
 }
 
 // TextureMap::TextureMap(glm::vec3 & value, TextureType texture_type): texture_type(texture_type) {
