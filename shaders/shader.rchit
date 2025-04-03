@@ -46,7 +46,7 @@ layout(scalar, set = 0, binding = 4) buffer Instances {
 
 layout(set = 0, binding = 5) uniform sampler2D base_color_tex[];
 layout(set = 0, binding = 6) uniform sampler2D normal_tex[];
-layout(set = 0, binding = 7) uniform sampler2D metalness_roughness_tex[]; // Check the format of this - it could be (nothing, mr, r, nothing) or (nothing, r, m, nothing)
+layout(set = 0, binding = 7) uniform sampler2D metalness_roughness_tex[];
 layout(set = 0, binding = 8) uniform sampler2D emissive_tex[];
 // layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
@@ -120,8 +120,12 @@ void main()
   // uint texture_id = 0;
   vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
   vec3 normal_map = texture(nonuniformEXT(normal_tex[texture_id]), uv).xyz;
-  // again be careful with what the roughness/metalness texture is
-  vec2 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).yz;
+  vec3 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).rgb;
+  // metalness should be B channel and roughness should be G channel
+  // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
+  float metalness = metalness_roughness.b;
+  float roughness = metalness_roughness.g;
+
   vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
 
   // Debugging
