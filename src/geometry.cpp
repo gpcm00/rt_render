@@ -21,19 +21,62 @@ TextureMap::TextureMap(tinygltf::Image& image, TextureType texture_type) : textu
     w = image.width;
     h = image.height;
     c = image.component;
+
+    if (c == 3) {
+        // Convert to RGBA
+        std::vector<unsigned char> rgba_map(w * h * 4);
+        for (int i = 0; i < w * h; ++i) {
+            rgba_map[i * 4] = map[i * 3];
+            rgba_map[i * 4 + 1] = map[i * 3 + 1];
+            rgba_map[i * 4 + 2] = map[i * 3 + 2];
+            rgba_map[i * 4 + 3] = 255; // Set alpha to 255 (opaque)
+        }
+        map = std::move(rgba_map);
+        c = 4;
+    }
 }
 
-TextureMap::TextureMap(glm::vec4 & value, TextureType texture_type): texture_type(texture_type) {
+TextureMap::TextureMap(glm::vec4 value, TextureType texture_type): texture_type(texture_type) {
+
     w = 1;
     h = 1;
     c = 4;
     map.resize(w * h * c);
-    map[0] = static_cast<unsigned char>(value.r * 255.0f);
-    map[1] = static_cast<unsigned char>(value.g * 255.0f);
-    map[2] = static_cast<unsigned char>(value.b * 255.0f);
-    map[3] = static_cast<unsigned char>(value.a * 255.0f);
 
+    if (texture_type == TextureType::normalTexture) {
+        unsigned char out_val = 255;
+        unsigned char zero_val = 128;
+        map[0] = zero_val;
+        map[1] = zero_val;
+        map[2] = out_val;
+        map[3] = zero_val;
+    }
+    else {
+        value *= 255.0f;
+        map[0] = static_cast<unsigned char>(value.r);
+        map[1] = static_cast<unsigned char>(value.g);
+        map[2] = static_cast<unsigned char>(value.b);
+        map[3] = static_cast<unsigned char>(value.a);
+    }
 }
+
+// TextureMap::TextureMap(glm::vec3 & value, TextureType texture_type): texture_type(texture_type) {
+//     w = 1;
+//     h = 1;
+//     c = 3;
+//     map.resize(w * h * c);
+//     map[0] = static_cast<unsigned char>(value.r * 255.0f);
+//     map[1] = static_cast<unsigned char>(value.g * 255.0f);
+//     map[2] = static_cast<unsigned char>(value.b * 255.0f);
+// }
+
+// TextureMap::TextureMap(float & value, TextureType texture_type): texture_type(texture_type) {
+//     w = 1;
+//     h = 1;
+//     c = 1;
+//     map.resize(w * h * c);
+//     map[0] = static_cast<unsigned char>(value * 255.0f);
+// }
 
 void TextureMap::free_texture_map() {
     // stbi_image_free(map);
