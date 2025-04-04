@@ -12,15 +12,19 @@ struct RayPayload {
   int level;
   vec4 color;
   vec4 contribution;
+  bool missed;
+  int index;
+
 };
 
 layout(location = 0) rayPayloadEXT RayPayload payload;
 void main()
 {
     // payload = vec4(0.0, 0.1, 0.3, 1.0);
-    payload.rayDirection = vec3(0.0);
-    payload.rayOrigin = vec3(0.0);
-    payload.contribution = vec4(0.0);
-    payload.color = vec4(0.0);
+    // payload.rayDirection = vec3(0.0);
+    // payload.rayOrigin = vec3(0.0);
+    payload.contribution = vec4(1.0);
+    payload.color = vec4(0.0, 0.0, 0.0, 1.0);
+    payload.missed = true;
     // payload = vec4(0.2, 0.2, 0.5, 1.0);
 }

@@ -47,3 +47,58 @@ vec3 BRDF_Filament(vec3 n, vec3 l, vec3 v, float roughness, float metalness, vec
     // apply lighting
     return (Fd + Fr) * light_color * NoL;
 }
+
+// http://www.jcgt.org/published/0009/03/02/
+vec3 random_pcg3d(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
+    v ^= v >> 16u;
+    v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
+    return vec3(v) * (1.0/float(0xffffffffu));
+}
+
+// https://schuttejoe.github.io/post/ggximportancesamplingpart1/
+vec3 sampleGGX(vec2 Xi, float roughness, vec3 N) {
+    float a = roughness * roughness;
+    
+    float phi = 2.0 * PI * Xi.x;
+    float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
+    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+    
+    vec3 H;
+    H.x = sinTheta * cos(phi);
+    H.y = sinTheta * sin(phi);
+    H.z = cosTheta;
+    
+    vec3 up = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent = normalize(cross(up, N));
+    vec3 bitangent = cross(N, tangent);
+    
+    return normalize(tangent * H.x + bitangent * H.y + N * H.z);
+}
+
+vec3 importanceSampleGGX(vec3 N, vec3 V, float roughness, vec2 Xi, out vec3 contribution) {
+    vec3 H = sampleGGX(Xi, roughness, N);
+    
+    vec3 L = reflect(-V, H);
+    
+    float NoL = dot(N, L);
+    float NoH = dot(N, H);
+    float VoH = dot(V, H);
+    
+    if (NoL > 0.0 && NoH > 0.0) {
+        vec3 F0 = vec3(0.04); 
+        vec3 F = F_Schlick(VoH, F0);
+        float NoV = max(dot(N, V), 0.0001);
+        float G = V_SmithGGXCorrelated(NoV, NoL, roughness);
+        
+        float D = D_GGX(NoH, roughness);
+        float weight = (VoH * G * D) / (NoV * NoH);
+        
+        contribution = F * weight;
+    } else {
+        contribution = vec3(0.0);
+    }
+    
+    return L;
+}
