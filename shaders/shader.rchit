@@ -49,6 +49,10 @@ struct Mesh {
     uint material_id;
 };
 
+struct Material {
+    float transmission;
+};
+
 layout(scalar, set = 0, binding = 3) buffer Meshes {
   Mesh meshes[];
 };
@@ -61,10 +65,14 @@ layout(scalar, set = 0, binding = 4) buffer Instances {
     Instance instances[];
 };
 
-layout(set = 0, binding = 5) uniform sampler2D base_color_tex[];
-layout(set = 0, binding = 6) uniform sampler2D normal_tex[];
-layout(set = 0, binding = 7) uniform sampler2D metalness_roughness_tex[];
-layout(set = 0, binding = 8) uniform sampler2D emissive_tex[];
+layout(scalar, set = 0, binding = 5) buffer Materials {
+    Material materials[];
+};
+
+layout(set = 0, binding = 6) uniform sampler2D base_color_tex[];
+layout(set = 0, binding = 7) uniform sampler2D normal_tex[];
+layout(set = 0, binding = 8) uniform sampler2D metalness_roughness_tex[];
+layout(set = 0, binding = 9) uniform sampler2D emissive_tex[];
 // layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
@@ -148,6 +156,11 @@ void main()
     vec3 color = BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_color);
 
     color += emissive;
+
+    // Debugging: show transmission
+    // if (materials[texture_id].transmission > 0.0) {
+    //     color = vec3(0.0, 0.0, 1.0);
+    // }
 
     payload = vec4(color, 1.0);
 }

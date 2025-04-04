@@ -74,6 +74,10 @@ struct MeshData {
     uint32_t material_id;
 };
 
+struct MaterialData {
+    float transmission;
+};
+
 struct InstanceData {
     uint32_t mesh_id;
 };
@@ -111,6 +115,11 @@ class TopLevelAccelerationStructure {
     vk::Buffer instance_data_buffer;
     VmaAllocation instance_data_allocation;
 
+    // For material parameters not in textures
+    std::vector<MaterialData> material_data;
+    vk::Buffer material_data_buffer;
+    VmaAllocation material_data_allocation;
+
     // Vulkan Acc Instance buffer
     vk::Buffer tlas_instance_buffer;
     VmaAllocation tlas_instance_allocation;
@@ -146,8 +155,8 @@ class TopLevelAccelerationStructure {
         vmaDestroyBuffer(allocator, buffer, allocation);
         vmaDestroyBuffer(allocator, mesh_data_buffer, mesh_data_allocation);
         vmaDestroyBuffer(allocator, instance_data_buffer, instance_data_allocation);
+        vmaDestroyBuffer(allocator, material_data_buffer, material_data_allocation);
         
-
     }
     
 };

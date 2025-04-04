@@ -260,10 +260,11 @@ class Renderer {
             {2, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR},
             {3, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // mesh data            
             {4, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // instance data
-            {5, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // color texture data
-            {6, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // normal texture data
-            {7, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // metallic roughness texture data
-            {8, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // emissive texture data
+            {5, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // material data
+            {6, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // color texture data
+            {7, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // normal texture data
+            {8, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // metallic roughness texture data
+            {9, vk::DescriptorType::eCombinedImageSampler, 128, vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR}, // emissive texture data
         };
 
         // Create pipeline
@@ -586,7 +587,14 @@ class Renderer {
                     std::cout << "Unknown texture type" << std::endl;
                 }
             }
+            tlas->material_data.push_back(MaterialData{(float)scene->material(n_material).get_transmission()});
         }
+
+        // copy material data to device buffer
+        auto [mat_buf, mat_alloc] = create_device_buffer_with_data(tlas->material_data.data(), sizeof(MaterialData) * tlas->material_data.size(), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst);
+        tlas->material_data_buffer = mat_buf;
+        tlas->material_data_allocation = mat_alloc;
+
         std::cout << "Created " << images.base_color_textures.size() << " base color textures" << std::endl;
         std::cout << "Created " << images.normal_textures.size() << " normal textures" << std::endl;
         std::cout << "Created " << images.metallic_roughness_textures.size() << " metallic textures" << std::endl;
@@ -747,10 +755,22 @@ class Renderer {
             instance_info.range = sizeof(InstanceData) * tlas->instance_data.size();
             instance_desc_write.pBufferInfo = &instance_info;
 
+            // Instance data descriptor
+            vk::WriteDescriptorSet material_desc_write;
+            material_desc_write.dstSet = descriptor_set;
+            material_desc_write.dstBinding = 5;
+            material_desc_write.descriptorType = vk::DescriptorType::eStorageBuffer;
+            material_desc_write.descriptorCount = 1;
+            vk::DescriptorBufferInfo mat_info;
+            mat_info.buffer = tlas->material_data_buffer;
+            mat_info.offset = 0;
+            mat_info.range = sizeof(MaterialData) * tlas->material_data.size();
+            material_desc_write.pBufferInfo = &mat_info;
+
             // Base color texture descriptor
             vk::WriteDescriptorSet texture_desc_write;
             texture_desc_write.dstSet = descriptor_set;
-            texture_desc_write.dstBinding = 5;
+            texture_desc_write.dstBinding = 6;
             texture_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
 
             std::vector<vk::DescriptorImageInfo> tex_infos;
@@ -764,7 +784,7 @@ class Renderer {
             // Normal texture descriptor
             vk::WriteDescriptorSet normal_desc_write;
             normal_desc_write.dstSet = descriptor_set;
-            normal_desc_write.dstBinding = 6;
+            normal_desc_write.dstBinding = 7;
             normal_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
             std::vector<vk::DescriptorImageInfo> normal_tex_infos;
             for (auto & image : images.normal_textures) {
@@ -776,7 +796,7 @@ class Renderer {
             // Metallic roughness texture descriptor
             vk::WriteDescriptorSet metallic_desc_write;
             metallic_desc_write.dstSet = descriptor_set;
-            metallic_desc_write.dstBinding = 7;
+            metallic_desc_write.dstBinding = 8;
             metallic_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
             std::vector<vk::DescriptorImageInfo> metallic_tex_infos;
             for (auto & image : images.metallic_roughness_textures) {
@@ -788,7 +808,7 @@ class Renderer {
             // Emissive texture descriptor
             vk::WriteDescriptorSet emissive_desc_write;
             emissive_desc_write.dstSet = descriptor_set;
-            emissive_desc_write.dstBinding = 8;
+            emissive_desc_write.dstBinding = 9;
             emissive_desc_write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
             std::vector<vk::DescriptorImageInfo> emissive_tex_infos;
             for (auto & image : images.emissive_textures) {
@@ -806,12 +826,13 @@ class Renderer {
                 cam_desc_write,
                 mesh_desc_write,
                 instance_desc_write,
+                material_desc_write,
                 texture_desc_write,
                 normal_desc_write,
                 metallic_desc_write,
                 emissive_desc_write
             };
-            device.updateDescriptorSets(9, writes, 0, nullptr);
+            device.updateDescriptorSets(10, writes, 0, nullptr);
         }
 
 

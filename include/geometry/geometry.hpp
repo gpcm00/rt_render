@@ -80,8 +80,11 @@ class Material {
         const auto& it = material.extensions.find("KHR_materials_transmission");
         if (it != material.extensions.end()) {
             transmission = it->second.Get("transmissionFactor").Get<double>();
+            // glm::vec4 transmission_vec(transmission, transmission, transmission, 1.0f);
+            // textures.push_back(TextureMap(transmission, TextureMap::TextureType::transmissionTextures));
         } else {
             transmission = 0;
+            // textures.push_back(TextureMap(transmission, TextureMap::TextureType::transmissionTextures));
         }
 
         std::cout<< name << ": \n";
@@ -191,6 +194,10 @@ class Material {
         for (auto& texture : textures) {
             texture.free_texture_map();
         }
+    }
+
+    double get_transmission() {
+        return transmission;
     }
 
     auto begin() {
