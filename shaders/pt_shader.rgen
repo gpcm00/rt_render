@@ -80,7 +80,7 @@ void main()
     
     // payload.color = vec3(0.0);
     vec4 final_color = vec4(0.0);
-    int n_samples = 12;
+    int n_samples = 24;
     for (int i = 0; i < n_samples; i++) {
         payload.rayOrigin = ray.origin;
         payload.rayDirection = ray.direction;
@@ -88,9 +88,9 @@ void main()
         payload.missed = false;
         payload.index = i;
         payload.contribution = vec4(1.0);
-        
+        payload.color = vec4(0.0);
         vec4 pixelColor = vec4(0.0);
-        const int maxLevel = 2;
+        const int maxLevel = 4;
         int level = 0;
         vec4 contribution = vec4(1.0);
     
@@ -116,8 +116,6 @@ void main()
     final_color += pixelColor;
   }
 
-  
-
-  imageStore(image, ivec2(gl_LaunchIDEXT.xy), clamp(final_color / n_samples, 0.0, 1.0));
+  imageStore(image, ivec2(gl_LaunchIDEXT.xy), clamp(final_color / float(n_samples), 0.0, 1.0));
 
 }

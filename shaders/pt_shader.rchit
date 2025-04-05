@@ -178,7 +178,7 @@ void main()
   // vec3 attenuation = light_color * 1 / ((position - light_pos)*(position - light_pos));
   // vec3 color = base_color * irradiance;
   
-  vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.level*payload.index ));
+  vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, pow(gl_PrimitiveID + gl_InstanceCustomIndexEXT, payload.level+payload.index) ));
   float e0 = random.x;
   float e1 = random.y;
   float a = roughness * roughness;

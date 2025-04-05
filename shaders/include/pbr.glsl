@@ -90,7 +90,8 @@ vec3 importanceSampleGGX(vec3 N, vec3 V, float roughness, vec2 Xi, out vec3 cont
         vec3 F0 = vec3(0.04); 
         vec3 F = F_Schlick(VoH, F0);
         float NoV = max(dot(N, V), 0.0001);
-        float G = V_SmithGGXCorrelated(NoV, NoL, roughness);
+        
+        float G = V_SmithGGXCorrelated(NoV, NoL, roughness * roughness);
         
         float D = D_GGX(NoH, roughness);
         float weight = (VoH * G * D) / (NoV * NoH);
