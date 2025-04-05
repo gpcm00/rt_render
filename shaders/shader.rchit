@@ -7,6 +7,7 @@
 #extension GL_EXT_scalar_block_layout : enable
 
 #extension GL_ARB_shading_language_include : enable
+#include "payload.glsl"
 #include "common.glsl"
 #include "pbr.glsl"
 
@@ -73,11 +74,12 @@ layout(set = 0, binding = 6) uniform sampler2D base_color_tex[];
 layout(set = 0, binding = 7) uniform sampler2D normal_tex[];
 layout(set = 0, binding = 8) uniform sampler2D metalness_roughness_tex[];
 layout(set = 0, binding = 9) uniform sampler2D emissive_tex[];
-// layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
 // layout(location = 0) rayPayloadInEXT vec3 hitValue;
-layout(location = 0) rayPayloadInEXT vec4 payload;
+layout(location = 0) rayPayloadInEXT RayPayload payload;
+
 hitAttributeEXT vec2 bary;
 void main()
 {
@@ -125,7 +127,7 @@ void main()
 
     vec3 light_pos = vec3(5, 5, 0); // test light position
     vec3 light_dir = normalize(light_pos - position);
-    vec3 light_color = 8.0*vec3(1.0, 1.0, 1.0);
+    vec3 light_color = 250.0*vec3(1.0, 1.0, 1.0);
     float ndl = max(dot(normal, light_dir), 0.0);
     vec3 lighting = ndl * light_color;
     //   vec3 ambient = vec3(0.1, 0.1, 0.1);
@@ -137,7 +139,7 @@ void main()
     vec3 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).rgb;
     // metalness should be B channel and roughness should be G channel
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
-    float metalness = metalness_roughness.b;
+    float metalness = metalness_roughness.b*0.0;
     float roughness = metalness_roughness.g;
 
     vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
@@ -152,15 +154,111 @@ void main()
 
     float reflectance = 0.5f;
     vec3 f0 = 0.16 * reflectance * reflectance * (1.0 - metalness) + base_color * metalness;
-    vec3 view = normalize(camera.position.xyz - position);
-    vec3 color = BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_color);
+    // vec3 view = normalize(camera.position.xyz - position);
+    vec3 view = -normalize(gl_WorldRayDirectionEXT);  // towards the camera
+    // float light_distance = length(light_pos - position);
+    // float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
 
-    color += emissive;
+    // vec3 color = BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
+    // color += emissive;
+
+    // let's also trace a ray
+    vec3 indirect_light = vec3(0.0);
+    vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
+// //a
+{
+//   vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.sample_id*payload.depth ));
+  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth ));
+
+  float e0 = random.x;
+  float e1 = random.y;
+  float a = roughness * roughness;
+  float a2 = a*a;
+  float theta = acos(sqrt((1.0 - e0) / ((a2 - 1.0) * e0 + 1.0)));
+  float phi = 2*PI * e1;
+  vec2 xi = vec2(phi, theta);
+  vec3 contribution = vec3(0.0);
+  // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
+  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
+}
+next_ray_dir = normalize(next_ray_dir);
+
+    // a
+    if (payload.depth < 5) {
+    payload.depth += 1;
+
+    Ray ray = Ray(position, next_ray_dir);
+
+    traceRayEXT(
+            topLevelAS, 
+            gl_RayFlagsOpaqueEXT, 
+            0xFF, // mask
+            0, // sbt offset
+            0, // sbt stride
+            0, // miss index
+            ray.origin, // ray origin
+            camera.rmin, // ray min
+            ray.direction, // ray direction, 
+            camera.rmax, //ray max
+            0 // ray payload
+        );
+        payload.depth -= 1;
+        indirect_light = payload.color.xyz;
+        
+    }
+
+    // pay2.hit = 
 
     // Debugging: show transmission
     // if (materials[texture_id].transmission > 0.0) {
     //     color = vec3(0.0, 0.0, 1.0);
     // }
 
-    payload = vec4(color, 1.0);
+    // vec3 indirect_dir = -normalize(reflect(view, normal));
+    vec3 indirect_dir = next_ray_dir;
+    // indirect_light = vec3(1.0, 1.0, 1.0);
+    vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_light);
+    
+    // feeble attempt at direct lighting
+    if (payload.depth < 5){
+        vec3 light_pos = vec3(3, 3, 3); // test light position
+        vec3 light_color = 500.0*vec3(1.0, 1.0, 1.0);
+
+        vec3 to_light = normalize(light_pos - position);
+        float light_distance = length(light_pos - position);
+        float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
+
+        uint last_depth = payload.depth;
+        payload.depth = 5; // want it to not shoot new rays after this one
+        // should use an occlusion group for this, but not enough time
+        traceRayEXT(
+                topLevelAS, 
+                gl_RayFlagsOpaqueEXT, 
+                0xFF, // mask
+                0, // sbt offset
+                0, // sbt stride
+                0, // miss index
+                position, // ray origin
+                camera.rmin, // ray min
+                to_light, // ray direction, 
+                camera.rmax, //ray max
+                0 // ray payload
+            );
+
+            if (!payload.hit || payload.t >= light_distance) {
+                // then add direct lighting
+                
+                color += BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
+            }
+
+    }
+    
+    
+    color += emissive*5.0;
+
+    payload.color = vec4(color, 1.0);
+
+    // payload.color = vec4(color + indirect_light, 1.0);
+    payload.hit = true;
+    payload.t = gl_HitTEXT;
 }

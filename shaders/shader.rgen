@@ -1,5 +1,10 @@
 #version 460
 #extension GL_EXT_ray_tracing : require
+#extension GL_ARB_shading_language_include : enable
+
+#include "payload.glsl"
+#include "common.glsl"
+#include "pbr.glsl"
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // Change format and image setup code if needed
@@ -19,12 +24,9 @@ layout(std140, binding = 2, set = 0) uniform Camera {
     
 } camera;
 
-layout(location = 0) rayPayloadEXT vec4 payload;
+layout(location = 0) rayPayloadEXT RayPayload payload;
 
-struct Ray {
-    vec3 origin;
-    vec3 direction;
-};
+
 
 // Computes the ray direction based on the camera parameters and the pixel coordinate
 Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up, vec3 right, float fov, float aspect_ratio) {
@@ -40,7 +42,7 @@ Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up, vec
 void main()
 {
 
-    payload = vec4(0.0, 0.0, 0.0, 1.0);
+
 
     // Get pixel coordinates
     uvec2 pixel = gl_LaunchIDEXT.xy;
@@ -61,20 +63,53 @@ void main()
         camera.aspect_ratio
     );
 
-    traceRayEXT(
-        topLevelAS, 
-        gl_RayFlagsOpaqueEXT, 
-        0xFF, // mask
-        0, // sbt offset
-        0, // sbt stride
-        0, // miss index
-        ray.origin, // ray origin
-        camera.rmin, // ray min
-        ray.direction, // ray direction, 
-        camera.rmax, //ray max
-        0 // ray payload
-    );
+    // const uint max_depth = 1;
 
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), payload);
+    vec4 color = vec4(1.0, 1.0, 1.0, 1.0);
+
+    const uint num_samples = 4;
+    uint i = 0;
+    for (; i < num_samples; i++) {
+
+        payload.color = vec4(1.0, 1.0, 1.0, 1.0);
+        payload.depth = 0;
+        payload.hit = false;
+        payload.sample_id = i;
+
+    // for (uint i = 0; i < max_depth; i++) {
+    
+        traceRayEXT(
+            topLevelAS, 
+            gl_RayFlagsOpaqueEXT, 
+            0xFF, // mask
+            0, // sbt offset
+            0, // sbt stride
+            0, // miss index
+            ray.origin, // ray origin
+            camera.rmin, // ray min
+            ray.direction, // ray direction, 
+            camera.rmax, //ray max
+            0 // ray payload
+        );
+
+        color = payload.color;
+        // break;
+
+        // if (payload.hit) {
+
+
+        // }
+        // else {
+        //     // We stop if there was a miss?
+        // }
+    // }
+
+    }
+
+    // color = payload.color;
+    // color.a = 1.0;
+    color = vec4(payload.color.rgb / float(num_samples), 1.0);
+
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), color);
 
 }

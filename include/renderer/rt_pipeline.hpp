@@ -123,7 +123,7 @@ public:
         pipeline_info.stageCount = 3;
         pipeline_info.pStages = shader_stages;
         pipeline_info.groupCount = 3; 
-        pipeline_info.maxPipelineRayRecursionDepth = 3; // Adjust later
+        pipeline_info.maxPipelineRayRecursionDepth = 5; // Adjust later
         pipeline_info.layout = layout;
         pipeline_info.pGroups = groups.data();
 
