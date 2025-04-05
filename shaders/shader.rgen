@@ -65,19 +65,16 @@ void main()
 
     // const uint max_depth = 1;
 
-    vec4 color = vec4(1.0, 1.0, 1.0, 1.0);
-
-    const uint num_samples = 4;
+    vec3 color = vec3(0.0);
+    const uint num_samples = 1;
     uint i = 0;
     for (; i < num_samples; i++) {
 
-        payload.color = vec4(1.0, 1.0, 1.0, 1.0);
+        payload.color = vec4(0.0, 0.0, 0.0, 0.0);
         payload.depth = 0;
         payload.hit = false;
         payload.sample_id = i;
 
-    // for (uint i = 0; i < max_depth; i++) {
-    
         traceRayEXT(
             topLevelAS, 
             gl_RayFlagsOpaqueEXT, 
@@ -91,25 +88,14 @@ void main()
             camera.rmax, //ray max
             0 // ray payload
         );
-
-        color = payload.color;
-        // break;
-
-        // if (payload.hit) {
-
-
-        // }
-        // else {
-        //     // We stop if there was a miss?
-        // }
-    // }
-
+        color += payload.color.xyz;
     }
 
     // color = payload.color;
     // color.a = 1.0;
-    color = vec4(payload.color.rgb / float(num_samples), 1.0);
+    vec4 final_color = vec4(color / float(num_samples), 1.0);
+    final_color = clamp(final_color, 0.0, 1.0);
 
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), color);
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), final_color);
 
 }

@@ -127,7 +127,7 @@ public:
         camera.set_right(new_right);
 
         camera.set_fov(110.0f);
-        camera.set_range(0.001f, 1000.0f);
+        camera.set_range(0.001f, 10000.0f);
 
         auto [r_width, r_height] = renderer->get_dimensions();
         camera.aspect_ratio = static_cast<float>(r_width) / static_cast<float>(r_height);

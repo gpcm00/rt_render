@@ -125,11 +125,11 @@ void main()
     vec3 bitangent = normalize(cross(normal, tangent)); // missing tangent.w
     mat3 normal_matrix = mat3(tangent, bitangent, normal);
 
-    vec3 light_pos = vec3(5, 5, 0); // test light position
-    vec3 light_dir = normalize(light_pos - position);
-    vec3 light_color = 250.0*vec3(1.0, 1.0, 1.0);
-    float ndl = max(dot(normal, light_dir), 0.0);
-    vec3 lighting = ndl * light_color;
+    // vec3 light_pos = vec3(50, 50, 0); // test light position
+    // vec3 light_dir = normalize(light_pos - position);
+    // vec3 light_color = 250.0*vec3(1.0, 1.0, 1.0);
+    // float ndl = max(dot(normal, light_dir), 0.0);
+    // vec3 lighting = ndl * light_color;
     //   vec3 ambient = vec3(0.1, 0.1, 0.1);
     uint texture_id = mesh.material_id;
     vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
@@ -179,12 +179,13 @@ void main()
   vec2 xi = vec2(phi, theta);
   vec3 contribution = vec3(0.0);
   // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
-  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
+//   next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
 }
 next_ray_dir = normalize(next_ray_dir);
 
-    // a
-    if (payload.depth < 5) {
+    const uint max_depth = 5; // make this configurable later
+    // Bounce lighting
+    if (payload.depth < max_depth) {
     payload.depth += 1;
 
     Ray ray = Ray(position, next_ray_dir);
@@ -220,16 +221,16 @@ next_ray_dir = normalize(next_ray_dir);
     vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_light);
     
     // feeble attempt at direct lighting
-    if (payload.depth < 5){
+    if (payload.depth < max_depth){
         vec3 light_pos = vec3(3, 3, 3); // test light position
-        vec3 light_color = 500.0*vec3(1.0, 1.0, 1.0);
+        vec3 light_color = 100.0*vec3(1.0, 1.0, 1.0);
 
         vec3 to_light = normalize(light_pos - position);
         float light_distance = length(light_pos - position);
-        float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
 
         uint last_depth = payload.depth;
-        payload.depth = 5; // want it to not shoot new rays after this one
+        payload.depth = max_depth; // want it to not shoot new rays after this one
+        payload.hit = true;
         // should use an occlusion group for this, but not enough time
         traceRayEXT(
                 topLevelAS, 
@@ -245,10 +246,12 @@ next_ray_dir = normalize(next_ray_dir);
                 0 // ray payload
             );
 
+            payload.depth = last_depth;
+
             if (!payload.hit || payload.t >= light_distance) {
                 // then add direct lighting
-                
-                color += BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
+                float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
+                color += BRDF_Filament(normal, to_light, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
             }
 
     }
