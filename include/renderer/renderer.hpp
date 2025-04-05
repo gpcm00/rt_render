@@ -13,6 +13,10 @@
 #include <renderer/acceleration_structure.hpp>
 #include <renderer/image.hpp>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+
 #include <unordered_map>
 #include <memory>
 
@@ -83,6 +87,9 @@ class Renderer {
     uint32_t current_frame;
 
     std::unique_ptr<RTPipeline> pipeline;
+
+    VkRenderPass imGuiRenderPass;
+    std::vector<vk::Framebuffer> framebuffers;
     
 
 
@@ -601,6 +608,110 @@ class Renderer {
         std::cout << "Created " << images.emissive_textures.size() << " emissive textures" << std::endl;        
     }
 
+    void init_imgui(WindowHandle window, WindowSystemGLFW* window_system) {
+        auto glfw_window = window_system->get(window);
+
+        VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
+
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000;
+        pool_info.poolSizeCount = std::size(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+
+        VkDescriptorPool imguiPool;
+        vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiPool);
+
+        VkAttachmentDescription attachment = {};
+        attachment.format = (VkFormat)swapchain->get_format();
+        attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentReference color_attachment = {};
+        color_attachment.attachment = 0;
+        color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass = {};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &color_attachment;
+
+        VkSubpassDependency dependency = {};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        VkRenderPassCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        info.attachmentCount = 1;
+        info.pAttachments = &attachment;
+        info.subpassCount = 1;
+        info.pSubpasses = &subpass;
+        info.dependencyCount = 1;
+        info.pDependencies = &dependency;
+
+        if (vkCreateRenderPass(device, &info, nullptr, &imGuiRenderPass) != VK_SUCCESS) {
+            throw std::runtime_error("Could not create Dear ImGui's render pass");
+        }
+
+        ImGui::CreateContext();
+        ImGui_ImplGlfw_InitForVulkan(glfw_window, true);
+
+        ImGui_ImplVulkan_InitInfo init_info = {};
+        init_info.Instance = instance;
+        init_info.PhysicalDevice = physical_device;
+        init_info.Device = device;
+        init_info.Queue = device.getQueue(graphics_queue_family_index, 0);
+        init_info.DescriptorPool = imguiPool;
+        init_info.RenderPass = imGuiRenderPass;
+        init_info.MinImageCount = 3;
+        init_info.ImageCount = 3;
+        init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+        ImGui_ImplVulkan_Init(&init_info);
+
+        framebuffers.resize(swapchain->get_num_images());
+
+        for (size_t i = 0; i < swapchain->get_num_images(); i++) {
+            vk::ImageView attachments[] = {
+                swapchain->get_image_view(i)
+            };
+
+            vk::FramebufferCreateInfo framebuffer_info{};
+            framebuffer_info.renderPass = imGuiRenderPass;
+            framebuffer_info.attachmentCount = 1;
+            framebuffer_info.pAttachments = attachments;
+            framebuffer_info.width = swapchain->get_width();
+            framebuffer_info.height = swapchain->get_height();
+            framebuffer_info.layers = 1;
+
+            framebuffers[i] = device.createFramebuffer(framebuffer_info);
+        }
+    }
+
+
     public:
 
     Renderer(WindowHandle window, WindowSystemGLFW * window_system): window(window), window_system(window_system) {
@@ -625,6 +736,7 @@ class Renderer {
         // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
 
         frame_setup();
+        init_imgui(window, window_system);
 
         std::cout << "Renderer created" << std::endl;
     }
@@ -855,6 +967,11 @@ class Renderer {
     
 
     void render(const FrameConstants & frame_constants) {
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
+        ImGui::Render();
 
         // set up work for the current frame
         // std::cout << "Waiting for command buffer" << std::endl;
@@ -958,7 +1075,21 @@ class Renderer {
         // Transition swapchain image to present layout
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags(), nullptr, nullptr, barrier_dst);
 
-        // End command buffer  
+        // Record ImGui commands
+        vk::RenderPassBeginInfo render_pass_info{};
+        render_pass_info.renderPass = imGuiRenderPass;
+        render_pass_info.framebuffer = framebuffers[swapchain_image_index];
+        render_pass_info.renderArea.extent.width = r_width;
+        render_pass_info.renderArea.extent.height = r_height;
+        render_pass_info.clearValueCount = 1;
+        vk::ClearValue clear_value = vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
+        render_pass_info.pClearValues = &clear_value;
+
+        cmd_buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd_buffer);
+        cmd_buffer.endRenderPass();
+
+        // End command buffer
         cmd_buffer.end();
 
         // submit to queue

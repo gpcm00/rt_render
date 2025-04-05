@@ -10,30 +10,44 @@ add_subdirectory(external/tinygltf)
 # include_directories(external/stb)
 add_subdirectory(external/VulkanMemoryAllocator)
 
-add_executable(renderer 
-src/main.cpp 
-src/renderer.cpp 
-src/input_system.cpp 
-src/swapchain.cpp 
+# ImGui setup
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+)
+include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
+
+add_executable(renderer
+src/main.cpp
+src/renderer.cpp
+src/input_system.cpp
+src/swapchain.cpp
 src/geometry.cpp
 src/pipeline.cpp
+${IMGUI_SOURCES}
 )
 target_link_libraries(renderer Vulkan::Vulkan glfw glm tinygltf GPUOpen::VulkanMemoryAllocator)
 target_include_directories(renderer PRIVATE include)
 
-file(GLOB shaders_sources 
-shaders/*.vert 
-shaders/*.frag 
-shaders/*.comp 
-shaders/*.geom 
-shaders/*.tesc 
-shaders/*.tese 
-shaders/*.rgen 
+file(GLOB shaders_sources
+shaders/*.vert
+shaders/*.frag
+shaders/*.comp
+shaders/*.geom
+shaders/*.tesc
+shaders/*.tese
+shaders/*.rgen
 shaders/*.rint
-shaders/*.rahit 
-shaders/*.rchit 
-shaders/*.rmiss 
-shaders/*.rcall 
+shaders/*.rahit
+shaders/*.rchit
+shaders/*.rmiss
+shaders/*.rcall
 )
 
 foreach(shader ${shaders_sources})
@@ -56,4 +70,3 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:renderer>/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_BINARY_DIR}/shaders $<TARGET_FILE_DIR:renderer>/shaders
 )
-
