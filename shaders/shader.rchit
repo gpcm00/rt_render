@@ -288,7 +288,7 @@ void main()
 
             // color += (1.0-transmission)*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
             color += BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
-
+            
 
         }
     }
@@ -304,7 +304,8 @@ void main()
         float light_distance = length(light_pos - position);
 
         // uint last_depth = depth;
-        payload.depth = max_depth; // want it to not shoot new rays after this one
+        // payload.depth = max_depth; // want it to not shoot new rays after this one
+        payload.depth = depth+1;
         payload.hit = true;
         // should use an occlusion group for this, but not enough time
         traceRayEXT(
@@ -326,8 +327,14 @@ void main()
             if (!payload.hit || payload.t >= light_distance) {
                 // then add direct lighting
                 float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
-                float pdf = max(dot(normal, to_light), 0.0) / PI;
                 color += BRDF_Filament(normal, to_light, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
+            }
+            else if (payload.transmission > random.x) {
+                // add transmitted lighting
+                float light_distance = payload.t;
+                float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
+                // color += light_attenuation*payload.transmission*payload.color.xyz;
+                color += BRDF_Filament(normal, to_light, view, roughness, metalness, f0, base_color, payload.transmission*light_attenuation*payload.color.xyz);
             }
 
     }
@@ -341,4 +348,5 @@ void main()
     // payload.color = vec4(color + indirect_light, 1.0);
     payload.hit = true;
     payload.t = gl_HitTEXT;
+    payload.transmission = transmission;
 }

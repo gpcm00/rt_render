@@ -9,4 +9,5 @@ struct RayPayload {
     bool hit;
     float t;
     uint sample_id;
+    float transmission;
 };

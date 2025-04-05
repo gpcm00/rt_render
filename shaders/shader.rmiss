@@ -35,5 +35,6 @@ void main()
     // payload.depth +=  1;
     payload.hit = false;
     payload.t = 0.0;
+    payload.transmission = 1.0;
     // payload = vec4(my_color, 1.0);
 }
