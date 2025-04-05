@@ -169,10 +169,9 @@ void main()
     vec3 next_ray_dir = vec3(0.0);
     // vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
 // //a
-  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
-{
-//   vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.sample_id*payload.depth ));
-
+  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth));
+  vec3 contribution = vec3(0.0);
+{    
   float e0 = random.x;
   float e1 = random.y;
   float a = roughness * roughness;
@@ -180,10 +179,11 @@ void main()
   float theta = acos(sqrt((1.0 - e0) / ((a2 - 1.0) * e0 + 1.0)));
   float phi = 2*PI * e1;
   vec2 xi = vec2(phi, theta);
-  vec3 contribution = vec3(0.0);
+  
   // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
-  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
+  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, f0, contribution);
 }
+    vec3 normalized_contribution = normalize(contribution);
     next_ray_dir = normalize(next_ray_dir);
     uint depth = payload.depth;
     payload.depth += 1;
@@ -288,7 +288,8 @@ void main()
 
             // color += (1.0-transmission)*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
             color += BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
-            
+            // color += normalized_contribution*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
+
 
         }
     }
