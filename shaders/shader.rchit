@@ -139,7 +139,7 @@ void main()
     vec3 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).rgb;
     // metalness should be B channel and roughness should be G channel
     // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
-    float metalness = metalness_roughness.b*0.0;
+    float metalness = metalness_roughness.b;
     float roughness = metalness_roughness.g;
 
     vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
@@ -168,7 +168,7 @@ void main()
 // //a
 {
 //   vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.sample_id*payload.depth ));
-  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth ));
+  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
 
   float e0 = random.x;
   float e1 = random.y;
@@ -182,11 +182,13 @@ void main()
 //   next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
 }
 next_ray_dir = normalize(next_ray_dir);
+    uint depth = payload.depth;
+    payload.depth += 1;
 
     const uint max_depth = 5; // make this configurable later
     // Bounce lighting
     if (payload.depth < max_depth) {
-    payload.depth += 1;
+    // payload.depth += 1;
 
     Ray ray = Ray(position, next_ray_dir);
 
@@ -203,7 +205,7 @@ next_ray_dir = normalize(next_ray_dir);
             camera.rmax, //ray max
             0 // ray payload
         );
-        payload.depth -= 1;
+        // payload.depth -= 1;
         indirect_light = payload.color.xyz;
         
     }
@@ -221,14 +223,14 @@ next_ray_dir = normalize(next_ray_dir);
     vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_light);
     
     // feeble attempt at direct lighting
-    if (payload.depth < max_depth){
+    if (depth < max_depth){
         vec3 light_pos = vec3(3, 3, 3); // test light position
         vec3 light_color = 100.0*vec3(1.0, 1.0, 1.0);
 
         vec3 to_light = normalize(light_pos - position);
         float light_distance = length(light_pos - position);
 
-        uint last_depth = payload.depth;
+        // uint last_depth = depth;
         payload.depth = max_depth; // want it to not shoot new rays after this one
         payload.hit = true;
         // should use an occlusion group for this, but not enough time
@@ -246,7 +248,7 @@ next_ray_dir = normalize(next_ray_dir);
                 0 // ray payload
             );
 
-            payload.depth = last_depth;
+            payload.depth = depth; // reset
 
             if (!payload.hit || payload.t >= light_distance) {
                 // then add direct lighting

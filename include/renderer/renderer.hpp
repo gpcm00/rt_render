@@ -621,6 +621,7 @@ class Renderer {
         // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
         // load_scene("glTF-Sample-Assets/Models/Sponza/glTF/Sponza.gltf");
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
+        // load_scene("glTF-Sample-Assets/Models/ToyCar/glTF/ToyCar.gltf");
         // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
         // load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
         // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
