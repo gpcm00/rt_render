@@ -33,8 +33,8 @@ class ShaderBindingTable {
 class Renderer {
     private:
     // hard code the dimensions for now
-    static constexpr int r_width = 1920;
-    static constexpr int r_height = 1080;
+    static constexpr int r_width = 1280;
+    static constexpr int r_height = 720;
     public:
 
     std::pair<int, int> get_dimensions() {
@@ -625,6 +625,8 @@ class Renderer {
         load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
         // load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
         // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
+        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
+
 
         frame_setup();
         set_camera_changed(true);

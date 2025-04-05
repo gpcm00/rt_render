@@ -138,7 +138,7 @@ void main()
   // uint texture_id = 0;
   vec3 tex_color = texture(nonuniformEXT(textures[texture_id]), uv).xyz;
   object_color =  tex_color;
-  vec3 color = clamp(object_color*(lighting + ambient), 0.0, 1.0);
+  // vec3 color = clamp(object_color*(lighting + ambient), 0.0, 1.0);
 
   // For debugging
 //   color = position.xyz;

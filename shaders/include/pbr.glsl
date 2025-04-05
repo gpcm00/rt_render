@@ -1,6 +1,18 @@
 // PBR model adapted from Google Filament Documentation: https://google.github.io/filament/Filament.md.html#materialsystem/standardmodel
 #define PI 3.14159265358979323846
 
+
+// struct RayPayload {
+//   vec3 rayOrigin;
+//   vec3 rayDirection;
+//   int level;
+//   vec4 color;
+//   vec4 contribution;
+//   bool missed;
+//   int index;
+//   bool light_ray;
+// };
+
 float D_GGX(float NoH, float a) {
     float a2 = a * a;
     float f = (NoH * a2 - NoH) * NoH + 1.0;
@@ -77,7 +89,7 @@ vec3 sampleGGX(vec2 Xi, float roughness, vec3 N) {
     return normalize(tangent * H.x + bitangent * H.y + N * H.z);
 }
 
-vec3 importanceSampleGGX(vec3 N, vec3 V, float roughness, vec2 Xi, out vec3 contribution) {
+vec3 importanceSampleGGX(vec3 N, vec3 V, float roughness, vec2 Xi, vec3 F0, out vec3 contribution) {
     vec3 H = sampleGGX(Xi, roughness, N);
     
     vec3 L = reflect(-V, H);
@@ -87,7 +99,7 @@ vec3 importanceSampleGGX(vec3 N, vec3 V, float roughness, vec2 Xi, out vec3 cont
     float VoH = dot(V, H);
     
     if (NoL > 0.0 && NoH > 0.0) {
-        vec3 F0 = vec3(0.04); 
+        // vec3 F0 = vec3(0.04); 
         vec3 F = F_Schlick(VoH, F0);
         float NoV = max(dot(N, V), 0.0001);
         

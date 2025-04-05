@@ -167,6 +167,8 @@ void main()
     vec3 next_ray_dir = vec3(0.0);
     // vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
 // //a
+    vec3 contribution = vec3(0.0);
+
 {
 //   vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.sample_id*payload.depth ));
   vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
@@ -178,9 +180,9 @@ void main()
   float theta = acos(sqrt((1.0 - e0) / ((a2 - 1.0) * e0 + 1.0)));
   float phi = 2*PI * e1;
   vec2 xi = vec2(phi, theta);
-  vec3 contribution = vec3(0.0);
+  
   // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
-  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
+  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, f0, contribution);
 }
 next_ray_dir = normalize(next_ray_dir);
     uint depth = payload.depth;
@@ -228,7 +230,8 @@ next_ray_dir = normalize(next_ray_dir);
     if (payload.hit) {
         indirect_attenuation = 1.0 / (1.0 + indirect_dist * indirect_dist);
     }
-    vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
+    vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light) * normalize(contribution);
+    color = clamp(color, 0.0, 0.6);
     // float pdf = max(dot(normal, indirect_dir), 0.0) / PI;
     // color /= pdf;
 
