@@ -70,14 +70,17 @@ void main()
     // const uint max_depth = 1;
 
     vec3 color = vec3(0.0);
-    // const uint num_samples = 1; // in-shader samples
-    
-    // for (uint i = 0; i < num_samples; i++) {
+    const uint num_internal_samples = 1; // internal samples
+    for (uint i = 0; i < num_internal_samples; i++) {
 
         payload.color = vec4(0.0, 0.0, 0.0, 0.0);
         payload.depth = 0;
         payload.hit = false;
-        payload.sample_id = pc.sample_index;
+        payload.sample_id = pc.sample_index + i;
+
+        vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
+
+        ray.direction += random * 0.0005; // for anti-aliasing
 
         traceRayEXT(
             topLevelAS, 
@@ -93,7 +96,10 @@ void main()
             0 // ray payload
         );
         color += payload.color.xyz;
-    // }
+    }
+    
+
+    color = color / float(num_internal_samples);
 
     // color = payload.color;
     // color.a = 1.0;
@@ -101,6 +107,7 @@ void main()
     vec3 final_color = color;
     // final_color = pow(final_color, vec3(1.0/2.2)); 
     final_color = clamp(final_color, 0.0, 1.0);
+    final_color = pow(final_color, vec3(1.0/2.2)); 
 
     if (pc.sample_index == 0) {
         imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(final_color, 1.0));

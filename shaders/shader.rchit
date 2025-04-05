@@ -133,7 +133,7 @@ void main()
     //   vec3 ambient = vec3(0.1, 0.1, 0.1);
     uint texture_id = mesh.material_id;
     vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
-    // base_color = decode_sRGB(base_color);
+    base_color = decode_sRGB(base_color);
     vec3 normal_map = texture(nonuniformEXT(normal_tex[texture_id]), uv).xyz;
     normal = normalize(normal_matrix * (normal_map * 2.0 - 1.0));
     vec3 metalness_roughness = texture(nonuniformEXT(metalness_roughness_tex[texture_id]), uv).rgb;
@@ -142,8 +142,10 @@ void main()
     float metalness = metalness_roughness.b;
     float roughness = metalness_roughness.g;
 
+    float transmission = materials[texture_id].transmission;
+
     vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
-    // emissive = decode_sRGB(emissive);
+    emissive = decode_sRGB(emissive);
     
     // Debugging
     // object_color = normal_map;
@@ -167,9 +169,9 @@ void main()
     vec3 next_ray_dir = vec3(0.0);
     // vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
 // //a
+  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
 {
 //   vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.sample_id*payload.depth ));
-  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
 
   float e0 = random.x;
   float e1 = random.y;
@@ -182,55 +184,102 @@ void main()
   // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
   next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
 }
-next_ray_dir = normalize(next_ray_dir);
+    next_ray_dir = normalize(next_ray_dir);
     uint depth = payload.depth;
     payload.depth += 1;
 
     const uint max_depth = 5; // make this configurable later
     float indirect_dist = 0.0;
+    vec3 color = vec3(0.0);
+
+    // For transmission
+    // float cosTheta = clamp(dot(-view, normal), 0.0, 1.0);
+    // float F0 = pow((1.0 - eta) / (1.0 + eta), 2.0);
+    // float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+
     // Bounce lighting
     if (payload.depth < max_depth) {
-    // payload.depth += 1;
+        // payload.depth += 1;
 
-    Ray ray = Ray(position, next_ray_dir);
+        if (transmission > 0.0 && (random.x > 0.5)) {
+            // the code below for transmission doesn't really work
 
-    traceRayEXT(
-            topLevelAS, 
-            gl_RayFlagsOpaqueEXT, 
-            0xFF, // mask
-            0, // sbt offset
-            0, // sbt stride
-            0, // miss index
-            ray.origin, // ray origin
-            camera.rmin, // ray min
-            ray.direction, // ray direction, 
-            camera.rmax, //ray max
-            0 // ray payload
-        );
-        // payload.depth -= 1;
-        indirect_light = payload.color.xyz;
-        indirect_dist = payload.t;
-        
+            
+            // cheap trick: let's assume back face is always in glass
+            float eta = 1.0; // 1.5 glass
+
+            if (dot(normal, gl_WorldRayDirectionEXT) > 0.0 ) {
+                // inside glass
+                next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, normal, eta));
+            }
+            else {
+                next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, -normal, 1.0/eta));
+            }
+            Ray ray = Ray(position, next_ray_dir);
+            traceRayEXT(
+                topLevelAS, 
+                gl_RayFlagsOpaqueEXT, 
+                0xFF, // mask
+                0, // sbt offset
+                0, // sbt stride
+                0, // miss index
+                ray.origin, // ray origin
+                camera.rmin, // ray min
+                ray.direction, // ray direction, 
+                camera.rmax, //ray max
+                0 // ray payload
+            );
+
+            vec3 transmission_color = payload.color.xyz;
+            float dist = payload.t;
+            float atten = 1.0;
+            if (payload.hit) {
+                atten = 1.0 / (1.0 + dist * dist);
+            }
+            // vec3 trans_dir = next_ray_dir;
+            // float cosTheta = clamp(dot(-view, normal), 0.0, 1.0);
+            // float F0 = pow((1.0 - eta) / (1.0 + eta), 2.0);
+            // float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+
+            color += (transmission)*transmission_color;
+            // color += (transmission)*BRDF_Filament(normal, trans_dir, view, roughness, metalness, f0, base_color, atten*transmission_color);
+        }
+        else {
+
+        Ray ray = Ray(position, next_ray_dir);
+
+        traceRayEXT(
+                topLevelAS, 
+                gl_RayFlagsOpaqueEXT, 
+                0xFF, // mask
+                0, // sbt offset
+                0, // sbt stride
+                0, // miss index
+                ray.origin, // ray origin
+                camera.rmin, // ray min
+                ray.direction, // ray direction, 
+                camera.rmax, //ray max
+                0 // ray payload
+            );
+            // payload.depth -= 1;
+            indirect_light = payload.color.xyz;
+            indirect_dist = payload.t;
+            
+                    // vec3 indirect_dir = -normalize(reflect(view, normal));
+            vec3 indirect_dir = next_ray_dir;
+            // indirect_light = vec3(1.0, 1.0, 1.0);
+            // float indirect_length = length(indirect_light);
+            float indirect_attenuation = 1.0;
+            if (payload.hit) {
+                indirect_attenuation = 1.0 / (1.0 + indirect_dist * indirect_dist);
+            }
+            color += (1.0-transmission)*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
+
+
+        }
     }
 
-    // pay2.hit = 
 
-    // Debugging: show transmission
-    // if (materials[texture_id].transmission > 0.0) {
-    //     color = vec3(0.0, 0.0, 1.0);
-    // }
-
-    // vec3 indirect_dir = -normalize(reflect(view, normal));
-    vec3 indirect_dir = next_ray_dir;
-    // indirect_light = vec3(1.0, 1.0, 1.0);
-    // float indirect_length = length(indirect_light);
-    float indirect_attenuation = 1.0;
-    if (payload.hit) {
-        indirect_attenuation = 1.0 / (1.0 + indirect_dist * indirect_dist);
-    }
-    vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
-    // float pdf = max(dot(normal, indirect_dir), 0.0) / PI;
-    // color /= pdf;
 
     // feeble attempt at direct lighting
     if (depth < max_depth){
