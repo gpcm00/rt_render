@@ -234,7 +234,7 @@ next_ray_dir = normalize(next_ray_dir);
 
     // feeble attempt at direct lighting
     if (depth < max_depth){
-        vec3 light_pos = 3*vec3(3, 3, 0); // test light position
+        vec3 light_pos = 3*vec3(3, 3, 3); // test light position
         vec3 light_color = 300.0*vec3(1.0, 1.0, 1.0);
 
         vec3 to_light = normalize(light_pos - position);

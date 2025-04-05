@@ -92,10 +92,13 @@ vk::DescriptorPool descriptor_pool;
 std::unordered_map<vk::DescriptorSetLayout, vk::DescriptorSet> descriptor_sets;
 
 
+bool camera_changed;
+uint32_t sample_index;;
+
 
 
 FrameData(std::shared_ptr<CommonFrameData> common_data, int width, int height, int frame_index): 
-common_data(common_data), device(common_data->device), width(width), height(height), frame_index(frame_index) {
+common_data(common_data), device(common_data->device), width(width), height(height), frame_index(frame_index), camera_changed(true) {
 
     vk::CommandBufferAllocateInfo info{};
     info.level = vk::CommandBufferLevel::ePrimary;
@@ -217,6 +220,7 @@ common_data(common_data), device(common_data->device), width(width), height(heig
     device.createDescriptorPool(&descriptor_pool_info, nullptr, &descriptor_pool);
 
     // Now create a descriptor 
+    sample_index = 0;
 }
 
 ~FrameData() {

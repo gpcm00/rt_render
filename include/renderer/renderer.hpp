@@ -616,17 +616,18 @@ class Renderer {
         create_sbt();
 
         // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
-        load_scene("glTF-Sample-Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
+        // load_scene("glTF-Sample-Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
         // load_scene("glTF-Sample-Assets/Models/DamagedHelmet/glTF/DamagedHelmet.gltf");
         // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
         // load_scene("glTF-Sample-Assets/Models/Sponza/glTF/Sponza.gltf");
         // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
         // load_scene("glTF-Sample-Assets/Models/ToyCar/glTF/ToyCar.gltf");
-        // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
+        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
         // load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
         // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
 
         frame_setup();
+        set_camera_changed(true);
 
         std::cout << "Renderer created" << std::endl;
     }
@@ -662,6 +663,11 @@ class Renderer {
         std::cout << "Renderer destroyed" << std::endl;
     }
 
+    void set_camera_changed(bool changed) {
+        for (auto & frame : frame_data) {
+            frame->camera_changed = changed;
+        }
+    }
     
     void load_scene(std::string file_path);
 
@@ -887,7 +893,9 @@ class Renderer {
         vk::ImageSubresourceRange subresource_range(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
         vk::ImageMemoryBarrier barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags(), nullptr, nullptr, barrier);
-        cmd_buffer.clearColorImage(frame_data[current_frame]->rt_image, vk::ImageLayout::eTransferDstOptimal, clear_color, subresource_range);
+        if (frame_data[current_frame]->camera_changed) {
+            cmd_buffer.clearColorImage(frame_data[current_frame]->rt_image, vk::ImageLayout::eTransferDstOptimal, clear_color, subresource_range);
+        }
         barrier = vk::ImageMemoryBarrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, frame_data[current_frame]->rt_image, subresource_range);
         cmd_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::DependencyFlags(), nullptr, nullptr, barrier);
         
@@ -929,6 +937,16 @@ class Renderer {
                                       pipeline->layout, 0,
                                       frame_data[current_frame]->descriptor_sets[pipeline->descriptor_set_layout],
                                       nullptr);
+
+        if (frame_data[current_frame]->camera_changed) {
+            frame_data[current_frame]->sample_index = 0;
+            frame_data[current_frame]->camera_changed = false;
+        }
+
+        cmd_buffer.pushConstants(pipeline->layout, vk::ShaderStageFlagBits::eRaygenKHR, 0, 
+            sizeof(uint32_t), &frame_data[current_frame]->sample_index);
+
+        frame_data[current_frame]->sample_index++;
 
         cmd_buffer.traceRaysKHR(
             &sbt.raygen_region, 

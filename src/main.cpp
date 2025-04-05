@@ -120,6 +120,10 @@ public:
         camera_position += static_cast<float>(input_system.get_axis("Forward")) * glm::vec3(camera.direction) * 0.1f;
         camera_position += static_cast<float>(input_system.get_axis("Right")) * glm::vec3(camera.right) * 0.1f;
 
+        if (delta_x != 0.0f || delta_y != 0.0f ||  input_system.get_axis("Forward") != 0.0f || input_system.get_axis("Right") != 0.0f) {
+            renderer->set_camera_changed(true);
+        }
+
         // Update old parameters with local ones
         camera.set_position(camera_position);
         camera.set_direction(camera_direction);

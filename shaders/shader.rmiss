@@ -25,9 +25,10 @@ void main()
     vec3 dir = normalize(gl_WorldRayDirectionEXT);
     float a = 0.5*(dir.y + 1.0);
     // payload.color.rgb = clamp(mix(vec3(1.0, 0.7, 0.5), vec3(0.5, 0.7, 1.0), a), 0.0, 1.0);
-    payload.color.rgb = clamp(mix(vec3(0.5, 0.5, 0.5), vec3(0.5, 0.7, 1.0), a), 0.0, 1.0);
+        payload.color.rgb = 1.0*clamp(mix(vec3(0, 0, 0), vec3(0.5, 0.7, 1.0), a), 0.0, 1.0);
+    // payload.color.rgb = 200*clamp(mix(vec3(0.5, 0.5, 0.5), vec3(0.5, 0.7, 1.0), a), 0.0, 1.0);
     // payload.color.xyz = vec3(0.5,0.5,0.5);
-    // payload.color.rgb = vec3(1.0);
+    // payload.color.rgb = 200.0*vec3(1.0);
     // payload.color = vec4( mix(vec3(1.0, 0.7, 0.5), vec3(0.5, 0.7, 1.0), a), 1.0);
     // payload.color.xyz = vec3(0.0);
 

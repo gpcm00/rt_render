@@ -82,8 +82,12 @@ public:
         vk::PipelineLayoutCreateInfo layout_info;
         layout_info.setLayoutCount = 1;
         layout_info.pSetLayouts = &descriptor_set_layout;
-        layout_info.pushConstantRangeCount = 0; // No push constants for now
-        layout_info.pPushConstantRanges = nullptr;
+        layout_info.pushConstantRangeCount = 1;
+        vk::PushConstantRange push_constant_range;
+        push_constant_range.offset = 0;
+        push_constant_range.size = sizeof(uint32_t);
+        push_constant_range.stageFlags = vk::ShaderStageFlagBits::eRaygenKHR;
+        layout_info.pPushConstantRanges = &push_constant_range;
         layout_info.pNext = &binding_flags_info; 
 
         if (device.createPipelineLayout(&layout_info, nullptr, &layout) != vk::Result::eSuccess) {
