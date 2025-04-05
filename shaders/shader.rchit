@@ -193,29 +193,30 @@ void main()
     vec3 color = vec3(0.0);
 
     // For transmission
-    // float cosTheta = clamp(dot(-view, normal), 0.0, 1.0);
-    // float F0 = pow((1.0 - eta) / (1.0 + eta), 2.0);
-    // float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+    float eta = 1.5; // 1.5 glass
 
     // Bounce lighting
     if (payload.depth < max_depth) {
         // payload.depth += 1;
 
-        if (transmission > 0.0 && (random.x > 0.5)) {
+        if (transmission > 0.0 && (random.x > 0.1)) {
             // the code below for transmission doesn't really work
 
             
             // cheap trick: let's assume back face is always in glass
-            float eta = 1.0; // 1.5 glass
 
-            if (dot(normal, gl_WorldRayDirectionEXT) > 0.0 ) {
+            if (dot(normal, gl_WorldRayDirectionEXT) < 0.0 ) {
                 // inside glass
-                next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, normal, eta));
+                next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, normal, 1.0/eta));
             }
             else {
-                next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, -normal, 1.0/eta));
+                next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, -normal, eta));
             }
-            Ray ray = Ray(position, next_ray_dir);
+            vec3 ray_origin = position;
+            // vec3 ray_origin = position;
+            // next_ray_dir = -normal;
+            Ray ray = Ray(ray_origin, next_ray_dir);
+
             traceRayEXT(
                 topLevelAS, 
                 gl_RayFlagsOpaqueEXT, 
@@ -237,10 +238,7 @@ void main()
                 atten = 1.0 / (1.0 + dist * dist);
             }
             // vec3 trans_dir = next_ray_dir;
-            // float cosTheta = clamp(dot(-view, normal), 0.0, 1.0);
-            // float F0 = pow((1.0 - eta) / (1.0 + eta), 2.0);
-            // float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-
+            // We need a proper BTDF?
             color += (transmission)*transmission_color;
             // color += (transmission)*BRDF_Filament(normal, trans_dir, view, roughness, metalness, f0, base_color, atten*transmission_color);
         }
