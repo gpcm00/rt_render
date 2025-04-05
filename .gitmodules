@@ -1,19 +1,25 @@
 [submodule "external/glfw"]
 	path = external/glfw
 	url = https://github.com/glfw/glfw.git
+	shallow = true
 [submodule "external/tinygltf"]
 	path = external/tinygltf
 	url = https://github.com/syoyo/tinygltf.git
+	shallow = true
 [submodule "external/glm"]
 	path = external/glm
 	url = https://github.com/g-truc/glm.git
+	shallow = true
 [submodule "external/stb"]
 	path = external/stb
 	url = https://github.com/nothings/stb.git
+	shallow = true
 [submodule "external/VulkanMemoryAllocator"]
 	path = external/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+	shallow = true
 [submodule "external/imgui"]
 	path = external/imgui
 	url = https://github.com/ocornut/imgui
 	branch = docking
+	shallow = true
