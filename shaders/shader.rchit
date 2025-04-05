@@ -297,7 +297,7 @@ void main()
 
 
     // feeble attempt at direct lighting
-    if (depth < max_depth){
+    if (depth < max_depth && transmission <= random.x) {
         vec3 light_pos = 3*vec3(3, 3, 3); // test light position
         vec3 light_color = 300.0*vec3(1.0, 1.0, 1.0);
 
@@ -330,7 +330,7 @@ void main()
                 float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
                 color += BRDF_Filament(normal, to_light, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
             }
-            else if (payload.transmission > random.x) {
+            else {
                 // add transmitted lighting
                 float light_distance = payload.t;
                 float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
