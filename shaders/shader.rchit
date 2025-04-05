@@ -164,7 +164,8 @@ void main()
 
     // let's also trace a ray
     vec3 indirect_light = vec3(0.0);
-    vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
+    vec3 next_ray_dir = vec3(0.0);
+    // vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
 // //a
 {
 //   vec3 random = random_pcg3d(uvec3(gl_LaunchIDEXT.xy, payload.sample_id*payload.depth ));
@@ -179,13 +180,14 @@ void main()
   vec2 xi = vec2(phi, theta);
   vec3 contribution = vec3(0.0);
   // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
-//   next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
+  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, contribution);
 }
 next_ray_dir = normalize(next_ray_dir);
     uint depth = payload.depth;
     payload.depth += 1;
 
     const uint max_depth = 5; // make this configurable later
+    float indirect_dist = 0.0;
     // Bounce lighting
     if (payload.depth < max_depth) {
     // payload.depth += 1;
@@ -207,6 +209,7 @@ next_ray_dir = normalize(next_ray_dir);
         );
         // payload.depth -= 1;
         indirect_light = payload.color.xyz;
+        indirect_dist = payload.t;
         
     }
 
@@ -220,12 +223,19 @@ next_ray_dir = normalize(next_ray_dir);
     // vec3 indirect_dir = -normalize(reflect(view, normal));
     vec3 indirect_dir = next_ray_dir;
     // indirect_light = vec3(1.0, 1.0, 1.0);
-    vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_light);
-    
+    // float indirect_length = length(indirect_light);
+    float indirect_attenuation = 1.0;
+    if (payload.hit) {
+        indirect_attenuation = 1.0 / (1.0 + indirect_dist * indirect_dist);
+    }
+    vec3 color = BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
+    // float pdf = max(dot(normal, indirect_dir), 0.0) / PI;
+    // color /= pdf;
+
     // feeble attempt at direct lighting
     if (depth < max_depth){
-        vec3 light_pos = vec3(3, 3, 3); // test light position
-        vec3 light_color = 100.0*vec3(1.0, 1.0, 1.0);
+        vec3 light_pos = 3*vec3(3, 3, 0); // test light position
+        vec3 light_color = 300.0*vec3(1.0, 1.0, 1.0);
 
         vec3 to_light = normalize(light_pos - position);
         float light_distance = length(light_pos - position);
@@ -253,15 +263,17 @@ next_ray_dir = normalize(next_ray_dir);
             if (!payload.hit || payload.t >= light_distance) {
                 // then add direct lighting
                 float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
+                float pdf = max(dot(normal, to_light), 0.0) / PI;
                 color += BRDF_Filament(normal, to_light, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
             }
 
     }
     
     
-    color += emissive*5.0;
+    color += emissive*1.0;
 
     payload.color = vec4(color, 1.0);
+    // payload.color = vec4(1.0, 1.0, 1.0, 1.0);
 
     // payload.color = vec4(color + indirect_light, 1.0);
     payload.hit = true;

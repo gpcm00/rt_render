@@ -24,7 +24,12 @@ void main()
     // From ray tracing in one weekend: https://raytracing.github.io/books/RayTracingInOneWeekend.html
     vec3 dir = normalize(gl_WorldRayDirectionEXT);
     float a = 0.5*(dir.y + 1.0);
-    payload.color.xyz = (1.0-a)*vec3(1.0, 0.7, 0.5) + a*vec3(0.5, 0.7, 1.0);
+    // payload.color.rgb = clamp(mix(vec3(1.0, 0.7, 0.5), vec3(0.5, 0.7, 1.0), a), 0.0, 1.0);
+    payload.color.rgb = clamp(mix(vec3(0.5, 0.5, 0.5), vec3(0.5, 0.7, 1.0), a), 0.0, 1.0);
+    // payload.color.xyz = vec3(0.5,0.5,0.5);
+    // payload.color.rgb = vec3(1.0);
+    // payload.color = vec4( mix(vec3(1.0, 0.7, 0.5), vec3(0.5, 0.7, 1.0), a), 1.0);
+    // payload.color.xyz = vec3(0.0);
 
     // payload.depth +=  1;
     payload.hit = false;

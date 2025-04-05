@@ -421,13 +421,13 @@ class Renderer {
     vk::Format get_vk_format(TextureMap::TextureType format) {
         switch (format) {
             case TextureMap::TextureType::baseColorTexture:
-                return vk::Format::eR8G8B8A8Srgb;
+                return vk::Format::eR8G8B8A8Unorm;
             case TextureMap::TextureType::normalTexture:
                 return vk::Format::eR8G8B8A8Unorm;
             case TextureMap::TextureType::metallicRoughnessTexture:
                 return vk::Format::eR8G8B8A8Unorm;
             case TextureMap::TextureType::emissiveTexture:
-                return vk::Format::eR8G8B8A8Srgb;
+                return vk::Format::eR8G8B8A8Unorm;
             default:
                 throw std::runtime_error("Unsupported texture format");
         }
