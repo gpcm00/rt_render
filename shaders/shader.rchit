@@ -199,18 +199,20 @@ void main()
     if (payload.depth < max_depth) {
         // payload.depth += 1;
 
-        if (transmission > 0.0 && (random.x > 0.1)) {
+        // if (transmission > 0.0 && (random.x > 0.01)) {
+        if (transmission > random.x) {
             // the code below for transmission doesn't really work
 
             
             // cheap trick: let's assume back face is always in glass
-
+            vec3 n = normal;
             if (dot(normal, gl_WorldRayDirectionEXT) < 0.0 ) {
                 // inside glass
                 next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, normal, 1.0/eta));
             }
             else {
                 next_ray_dir = normalize(refract(gl_WorldRayDirectionEXT, -normal, eta));
+                n = -normal;
             }
             vec3 ray_origin = position;
             // vec3 ray_origin = position;
@@ -239,7 +241,14 @@ void main()
             }
             // vec3 trans_dir = next_ray_dir;
             // We need a proper BTDF?
-            color += (transmission)*transmission_color;
+
+        //    vec3 h = normalize(view + normal);
+        //     // float LoH = clamp(dot(l, h), 0.0, 1.0);
+        //     float u = clamp(dot(-view, normal), 0.0, 1.0);
+        //     vec3 f = F_Schlick(u, f0);
+
+            color += atten*transmission_color;
+            // color += (transmission)*transmission_color;
             // color += (transmission)*BRDF_Filament(normal, trans_dir, view, roughness, metalness, f0, base_color, atten*transmission_color);
         }
         else {
@@ -271,7 +280,14 @@ void main()
             if (payload.hit) {
                 indirect_attenuation = 1.0 / (1.0 + indirect_dist * indirect_dist);
             }
-            color += (1.0-transmission)*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
+
+            // vec3 h = normalize(view + normal);
+            // // float LoH = clamp(dot(l, h), 0.0, 1.0);
+            // float u = clamp(dot(-view, normal), 0.0, 1.0);
+            // vec3 f = F_Schlick(u, f0);
+
+            // color += (1.0-transmission)*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
+            color += BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
 
 
         }
