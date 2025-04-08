@@ -8,6 +8,5 @@ struct RayPayload {
     uint depth;
     bool hit;
     float t;
-    uint sample_id;
     float transmission;
 };

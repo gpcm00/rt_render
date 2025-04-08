@@ -85,8 +85,8 @@ public:
         layout_info.pushConstantRangeCount = 1;
         vk::PushConstantRange push_constant_range;
         push_constant_range.offset = 0;
-        push_constant_range.size = sizeof(uint32_t);
-        push_constant_range.stageFlags = vk::ShaderStageFlagBits::eRaygenKHR;
+        push_constant_range.size = sizeof(PushConstant);
+        push_constant_range.stageFlags = vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR;
         layout_info.pPushConstantRanges = &push_constant_range;
         layout_info.pNext = &binding_flags_info; 
 
@@ -127,7 +127,7 @@ public:
         pipeline_info.stageCount = 3;
         pipeline_info.pStages = shader_stages;
         pipeline_info.groupCount = 3; 
-        pipeline_info.maxPipelineRayRecursionDepth = 5; // Adjust later
+        pipeline_info.maxPipelineRayRecursionDepth = 31; // Adjust later
         pipeline_info.layout = layout;
         pipeline_info.pGroups = groups.data();
 

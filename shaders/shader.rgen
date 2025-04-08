@@ -29,6 +29,7 @@ layout(location = 0) rayPayloadEXT RayPayload payload;
 layout( push_constant ) uniform constants
 {
     uint sample_index;
+    uint rand;
 } pc;
 
 
@@ -76,10 +77,9 @@ void main()
         payload.color = vec4(0.0, 0.0, 0.0, 0.0);
         payload.depth = 0;
         payload.hit = false;
-        payload.sample_id = pc.sample_index + i;
         payload.transmission = 0.0;
 
-        vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
+        vec3 random = random_pcg3d(pc.rand*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
 
         ray.direction += random * 0.0005; // for anti-aliasing
 
@@ -119,7 +119,5 @@ void main()
         final_color = mix(img_color, final_color, 1.0/float(pc.sample_index+1));
         imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(final_color, 1.0));
     }
-
-    // imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(final_color, 1.0));
 
 }

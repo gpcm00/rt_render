@@ -80,6 +80,12 @@ layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // layout(location = 0) rayPayloadInEXT vec3 hitValue;
 layout(location = 0) rayPayloadInEXT RayPayload payload;
 
+layout( push_constant ) uniform constants
+{
+    uint sample_index;
+    uint rand;
+} pc;
+
 hitAttributeEXT vec2 bary;
 void main()
 {
@@ -167,26 +173,24 @@ void main()
     // let's also trace a ray
     vec3 indirect_light = vec3(0.0);
     vec3 next_ray_dir = vec3(0.0);
-    // vec3 next_ray_dir = normalize(reflect(gl_WorldRayDirectionEXT, normal));
-// //a
-  vec3 random = random_pcg3d(payload.sample_id*uvec3(gl_LaunchIDEXT.xy, payload.depth));
-  vec3 contribution = vec3(0.0);
-{    
-  float e0 = random.x;
-  float e1 = random.y;
-  float a = roughness * roughness;
-  float a2 = a*a;
-  float theta = acos(sqrt((1.0 - e0) / ((a2 - 1.0) * e0 + 1.0)));
-  float phi = 2*PI * e1;
-  vec2 xi = vec2(phi, theta);
-  
-  // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
-  next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, f0, contribution);
-}
+
+    vec3 random = random_pcg3d(pc.rand*uvec3(gl_LaunchIDEXT.xy, payload.depth));
+    vec3 contribution = vec3(0.0);
+    {    
+    float e0 = random.x;
+    float e1 = random.y;
+    float a = roughness * roughness;
+    float a2 = a*a;
+    float theta = acos(sqrt((1.0 - e0) / ((a2 - 1.0) * e0 + 1.0)));
+    float phi = 2*PI * e1;
+    vec2 xi = vec2(phi, theta);
+
+    // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
+    next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, f0, contribution);
+    }
     vec3 normalized_contribution = normalize(contribution);
     next_ray_dir = normalize(next_ray_dir);
-    uint depth = payload.depth;
-    payload.depth += 1;
+    const uint depth = payload.depth;
 
     const uint max_depth = 5; // make this configurable later
     float indirect_dist = 0.0;
@@ -196,8 +200,8 @@ void main()
     float eta = 1.5; // 1.5 glass
 
     // Bounce lighting
-    if (payload.depth < max_depth) {
-        // payload.depth += 1;
+    if (depth < max_depth) {
+        payload.depth += 1;
 
         // if (transmission > 0.0 && (random.x > 0.01)) {
         if (transmission > random.x) {
@@ -323,7 +327,6 @@ void main()
                 0 // ray payload
             );
 
-            payload.depth = depth; // reset
 
             if (!payload.hit || payload.t >= light_distance) {
                 // then add direct lighting

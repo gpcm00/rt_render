@@ -38,7 +38,14 @@ void InputSystem::evaluate_key_events()
 				}
 			}
 
-			actions[binding.action] = { key_event.button_state, axis };
+			if (key_event.button_state == input::ButtonState::Pressed && actions.find(binding.action) != actions.end()
+			 && (actions[binding.action].button_state == input::ButtonState::Pressed || actions[binding.action].button_state == input::ButtonState::Held)) {
+						actions[binding.action].button_state = input::ButtonState::Held;
+			}
+			else {
+				actions[binding.action] = { key_event.button_state, axis };
+			}
+
 			break;
 		}
 	}
@@ -136,9 +143,6 @@ bool InputSystem::update()
 
 	if (get_button_state("Exit") == input::ButtonState::Pressed || get_button_state("Exit") == input::ButtonState::Held) {
 		return true;
-	}
-	if (get_button_state("Mouse Action") == input::ButtonState::Held) {
-		std::cout << "\nMouse Action fired!";
 	}
 	return false;
 }

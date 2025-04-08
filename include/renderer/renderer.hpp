@@ -83,6 +83,8 @@ class Renderer {
     uint32_t current_frame;
 
     std::unique_ptr<RTPipeline> pipeline;
+
+    bool averaging;
     
 
 
@@ -607,6 +609,7 @@ class Renderer {
 
         graphics_queue_family_index = -1;
         present_queue_family_index = -1;
+        averaging = true;
         setup_vulkan();
 
         swapchain = std::make_unique<Swapchain>(physical_device, device, window_system->get(window), surface);
@@ -943,11 +946,15 @@ class Renderer {
             frame_data[current_frame]->camera_changed = false;
         }
 
-        cmd_buffer.pushConstants(pipeline->layout, vk::ShaderStageFlagBits::eRaygenKHR, 0, 
-            sizeof(uint32_t), &frame_data[current_frame]->sample_index);
+        PushConstant pc{frame_data[current_frame]->sample_index, rand() % 1000};
+        cmd_buffer.pushConstants(pipeline->layout, vk::ShaderStageFlagBits::eRaygenKHR 
+            | vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR, 0,
+            sizeof(PushConstant), &pc);
 
-        frame_data[current_frame]->sample_index++;
-
+        if (averaging) {
+            frame_data[current_frame]->sample_index++;
+        }
+        
         cmd_buffer.traceRaysKHR(
             &sbt.raygen_region, 
             &sbt.miss_region,
@@ -1006,6 +1013,14 @@ class Renderer {
 
         current_frame  = (current_frame + 1) % swapchain->get_num_images();
 
+    }
+
+    void toggle_averaging() {
+        averaging = !averaging;
+        for (auto & frame : frame_data) {
+            frame->sample_index = 0;
+        }
+        set_camera_changed(true);
     }
 
     RTCamera& get_camera() {

@@ -5,6 +5,7 @@
 #include <cassert>
 #include <glm/glm.hpp>
 #include <algorithm>
+#include <renderer/push_constants.hpp>
 
 struct RayConstants {
     glm::vec4 color;

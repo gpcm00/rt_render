@@ -49,6 +49,7 @@ public:
         input_system.create_key_action_binding("Forward", input::Key::S, true);
         input_system.create_key_action_binding("Right", input::Key::S, false);
         input_system.create_key_action_binding("Right", input::Key::A, true);
+        input_system.create_key_action_binding("ToggleAveraging", input::Key::F, false);
 
         last_mouse_position = input_system.get_mouse_position();
 
@@ -83,6 +84,11 @@ public:
         if (input_system.get_button_state("Exit") == input::ButtonState::Pressed || input_system.get_button_state("Exit") == input::ButtonState::Held) {
             exit_function();
         }
+
+
+        // if (input_system.get_button_state("ToggleAveraging") == input::ButtonState::Pressed) {
+        //     renderer->toggle_averaging();
+        // }
     }
 
     void render_update(const FrameConstants & frame_constants) override {
@@ -137,7 +143,7 @@ public:
         camera.aspect_ratio = static_cast<float>(r_width) / static_cast<float>(r_height);
         // Render
         renderer->render(frame_constants);
-
+        // std::cout << "Camera position: " << camera_position.x << ", " << camera_position.y << ", " << camera_position.z << std::endl;
     }
 };
 
