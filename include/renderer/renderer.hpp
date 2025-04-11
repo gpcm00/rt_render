@@ -33,8 +33,8 @@ class ShaderBindingTable {
 class Renderer {
     private:
     // hard code the dimensions for now
-    static constexpr int r_width = 1920;
-    static constexpr int r_height = 1080;
+    static constexpr int r_width = 1280;
+    static constexpr int r_height = 720;
     public:
 
     std::pair<int, int> get_dimensions() {
@@ -617,17 +617,10 @@ class Renderer {
         // create_pipeline();
         create_rt_pipeline();
         create_sbt();
-
         // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
         // load_scene("glTF-Sample-Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
-        // load_scene("glTF-Sample-Assets/Models/DamagedHelmet/glTF/DamagedHelmet.gltf");
-        // load_scene("glTF-Sample-Assets/Models/AntiqueCamera/glTF/AntiqueCamera.gltf");
-        // load_scene("glTF-Sample-Assets/Models/Sponza/glTF/Sponza.gltf");
-        // load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
-        // load_scene("glTF-Sample-Assets/Models/ToyCar/glTF/ToyCar.gltf");
-        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
-        // load_scene("glTF-Sample-Assets/Models/CarConcept/glTF/CarConcept.gltf");
-        // load_scene("glTF-Sample-Assets/Models/Cube/glTF/Cube.gltf");
+        load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
+        // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
 
         frame_setup();
         set_camera_changed(true);
