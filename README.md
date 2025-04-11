@@ -28,7 +28,7 @@ Clone the repository with submodules:
 git clone --recurse-submodules --shallow-submodules https://github.com/gpcm00/rt_render
 ```
 
-Configure the build directory and build the project:
+Configure the build directory and build the project (Windows or Linux):
 
 ```bash
 cmake -B build
@@ -42,9 +42,11 @@ cd build
 git clone --depth 1 https://github.com/KhronosGroup/glTF-Sample-Assets
 ```
 
-Run the application from the same directory as the glTF sample assets.
+Run the application from the same directory as the glTF sample assets. It uses the sample asset `ABeautifulGame.gltf` as the default scene, but you can pass it a file path as a command line argument, for example:
 
-Due to time constraints, the scene path is hardcoded in the Renderer class. To change it, edit the path passed to the `load_scene` function in the Renderer [constructor](include/renderer/renderer.hpp).
+`./renderer.exe "glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf"`
+
+Due to time constraints, not all sample assets are supported. 
 
 ## Controls
 

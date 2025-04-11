@@ -626,7 +626,7 @@ class Renderer {
     }
 
   public:
-    Renderer(WindowHandle window, WindowSystemGLFW *window_system)
+    Renderer(WindowHandle window, WindowSystemGLFW *window_system, const std::filesystem::path & scene_path)
         : window(window), window_system(window_system) {
 
         graphics_queue_family_index = -1;
@@ -639,7 +639,8 @@ class Renderer {
 
         create_rt_pipeline();
         create_sbt();
-        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
+        std::cout << "Loading scene at: " << scene_path << std::endl;
+        load_scene(scene_path.string());
 
         frame_setup();
         set_camera_changed(true);

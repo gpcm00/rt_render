@@ -27,7 +27,7 @@ class PathTracer : public App {
     float yaw;
 
   public:
-    PathTracer()
+    PathTracer(const std::filesystem::path scene_path)
         : input_system(&window_system, new KeyboardGLFW(&window_system),
                        new MouseGLFW(&window_system)),
           last_mouse_position(0, 0) {
@@ -38,7 +38,7 @@ class PathTracer : public App {
         auto window = window_system.create_window(width, height);
         window_system.set_title(window.value(), "Vulkan Path Tracer");
 
-        renderer = std::make_unique<Renderer>(window.value(), &window_system);
+        renderer = std::make_unique<Renderer>(window.value(), &window_system, scene_path);
 
         camera_position = {5.0f, 5.0f, 5.0f};
         glm::vec3 target = {0.0f, 0.0f, 0.0f};
@@ -75,18 +75,11 @@ class PathTracer : public App {
         exit_function = function;
     }
 
-    void fixed_update(const FrameConstants &frame_constants) override {
-        input_system.update();
-
-        if (input_system.get_button_state("Exit") ==
-                input::ButtonState::Pressed ||
-            input_system.get_button_state("Exit") == input::ButtonState::Held) {
-            exit_function();
-        }
-    }
+    void fixed_update(const FrameConstants &frame_constants) override {}
 
     void render_update(const FrameConstants &frame_constants) override {
 
+        input_system.update();
         // Update camera
         auto &camera = renderer->get_camera();
         auto up = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -131,6 +124,12 @@ class PathTracer : public App {
             renderer->set_camera_changed(true);
         }
 
+        if (input_system.get_button_state("Exit") ==
+                input::ButtonState::Pressed ||
+            input_system.get_button_state("Exit") == input::ButtonState::Held) {
+            exit_function();
+        }
+
         // Update old parameters with local ones
         camera.set_position(camera_position);
         camera.set_direction(camera_direction);
@@ -148,8 +147,19 @@ class PathTracer : public App {
     }
 };
 
-int main() {
-    PathTracer().run();
+int main(int argc, char *argv[]) {
+
+    std::filesystem::path scene_path;
+    if (argc < 2) {
+        std::cout << "No scene path provided. Using default scene." << std::endl;
+        scene_path = "glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf";
+    }
+    else {
+        std::cout << "Using scene path: " << argv[1] << std::endl;
+        scene_path = argv[1];
+    }
+
+    PathTracer(scene_path).run();
 
     return 0;
 }
