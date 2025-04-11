@@ -43,3 +43,20 @@ git clone --depth 1 https://github.com/KhronosGroup/glTF-Sample-Assets
 ```
 
 Run the application from the same directory as the glTF sample assets.
+
+Due to time constraints, the scene path is hardcoded in the Renderer class. To change it, edit the path passed to the `load_scene` function in the Renderer [constructor](include/renderer/renderer.hpp).
+
+## Controls
+
+- Movement: WASD keys
+- Camera Rotation: Mouse
+- Exit: Escape key
+
+## Code
+
+The code organization is as follows:
+
+- The `shaders` folder contains the GLSL shader source code.
+- Our implementation is split across the `src` folder which contains our `.cpp` files while the header files are in the `include` folder. Our renderer code is primarily in [`include/renderer/renderer.hpp`](include/renderer/renderer.hpp) and [`src/renderer.cpp`](src/renderer.cpp).
+- The `external` directory contains third-party dependencies in the form of git submodules.
+
