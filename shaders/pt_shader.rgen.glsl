@@ -5,7 +5,6 @@ layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // Change format and image setup code if needed
 layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
-
 // Be wary of alignment
 layout(std140, binding = 2, set = 0) uniform Camera {
     vec4 position;
@@ -16,15 +15,15 @@ layout(std140, binding = 2, set = 0) uniform Camera {
     float rmin;
     float rmax;
     float aspect_ratio;
-    
-} camera;
+}
+camera;
 
 struct RayPayload {
-  vec3 rayOrigin;
-  vec3 rayDirection;
-  int level;
-  vec4 color;
-  vec3 contribution;
+    vec3 rayOrigin;
+    vec3 rayDirection;
+    int level;
+    vec4 color;
+    vec3 contribution;
 };
 
 layout(location = 0) rayPayloadEXT RayPayload payload;
@@ -34,19 +33,18 @@ struct Ray {
     vec3 direction;
 };
 
-// Computes the ray direction based on the camera parameters and the pixel coordinate
-Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up, vec3 right, float fov, float aspect_ratio) {
+// Computes the ray direction based on the camera parameters and the pixel
+// coordinate
+Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up,
+                            vec3 right, float fov, float aspect_ratio) {
     float scale = tan(fov * 0.5);
-    vec3 ray_direction = normalize(
-        (uv.x - 0.5) * aspect_ratio * scale * right 
-        -(uv.y - 0.5) * scale * up +  direction
-    );
-    
+    vec3 ray_direction = normalize((uv.x - 0.5) * aspect_ratio * scale * right -
+                                   (uv.y - 0.5) * scale * up + direction);
+
     return Ray(position, ray_direction);
 }
 
-void main()
-{
+void main() {
 
     payload = vec4(0.0, 0.0, 0.0, 1.0);
 
@@ -58,16 +56,8 @@ void main()
     vec2 uv = (vec2(pixel) + 0.5) / vec2(resolution);
 
     Ray ray = compute_perspective_ray(
-        uv,
-        camera.position.xyz,
-        camera.direction.xyz, 
-        camera.up.xyz, 
-        camera.right.xyz, 
-        camera.fov,
-        camera.aspect_ratio
-    );
-
-
+        uv, camera.position.xyz, camera.direction.xyz, camera.up.xyz,
+        camera.right.xyz, camera.fov, camera.aspect_ratio);
 
     payload.rayOrigin = ray.origin;
     payload.rayDirection = ray.direction;
@@ -78,26 +68,24 @@ void main()
     int level = 0;
     vec3 contribution = vec2(1.0);
 
-    while(length(payload.rayDirection) > 0.1 && level < maxLevel && length(contribution) > 0.001) {
-      payload.level = level;
-      traceRayEXT(
-          topLevelAS, 
-          gl_RayFlagsOpaqueEXT, 
-          0xFF, // mask
-          0, // sbt offset
-          0, // sbt stride
-          0, // miss index
-          payload.rayOrigin, // ray origin
-          camera.rmin, // ray min
-          payload.rayDirection, // ray direction, 
-          camera.rmax, //ray max
-          0 // ray payload
-      );
-      pixelColor += payload.color * contribution;
-      contribution *= payload.contribution;
-      level++;
-  }
+    while (length(payload.rayDirection) > 0.1 && level < maxLevel &&
+           length(contribution) > 0.001) {
+        payload.level = level;
+        traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT,
+                    0xFF,                 // mask
+                    0,                    // sbt offset
+                    0,                    // sbt stride
+                    0,                    // miss index
+                    payload.rayOrigin,    // ray origin
+                    camera.rmin,          // ray min
+                    payload.rayDirection, // ray direction,
+                    camera.rmax,          // ray max
+                    0                     // ray payload
+        );
+        pixelColor += payload.color * contribution;
+        contribution *= payload.contribution;
+        level++;
+    }
 
-  simageStore(image, ivec2(gl_LaunchIDEXT.xy), pixelColor);
-
+    simageStore(image, ivec2(gl_LaunchIDEXT.xy), pixelColor);
 }

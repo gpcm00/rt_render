@@ -2,14 +2,13 @@
 #extension GL_EXT_ray_tracing : require
 #extension GL_ARB_shading_language_include : enable
 
-#include "payload.glsl"
 #include "common.glsl"
+#include "payload.glsl"
 #include "pbr.glsl"
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 // Change format and image setup code if needed
 layout(binding = 1, set = 0, rgba8) uniform image2D image;
-
 
 // Be wary of alignment
 layout(std140, binding = 2, set = 0) uniform Camera {
@@ -21,33 +20,29 @@ layout(std140, binding = 2, set = 0) uniform Camera {
     float rmin;
     float rmax;
     float aspect_ratio;
-    
-} camera;
+}
+camera;
 
 layout(location = 0) rayPayloadEXT RayPayload payload;
 
-layout( push_constant ) uniform constants
-{
+layout(push_constant) uniform constants {
     uint sample_index;
     uint rand;
-} pc;
+}
+pc;
 
-
-// Computes the ray direction based on the camera parameters and the pixel coordinate
-Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up, vec3 right, float fov, float aspect_ratio) {
+// Computes the ray direction based on the camera parameters and the pixel
+// coordinate
+Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up,
+                            vec3 right, float fov, float aspect_ratio) {
     float scale = tan(fov * 0.5);
-    vec3 ray_direction = normalize(
-        (uv.x - 0.5) * aspect_ratio * scale * right 
-        -(uv.y - 0.5) * scale * up +  direction
-    );
-    
+    vec3 ray_direction = normalize((uv.x - 0.5) * aspect_ratio * scale * right -
+                                   (uv.y - 0.5) * scale * up + direction);
+
     return Ray(position, ray_direction);
 }
 
-void main()
-{
-
-
+void main() {
 
     // Get pixel coordinates
     uvec2 pixel = gl_LaunchIDEXT.xy;
@@ -56,18 +51,9 @@ void main()
     // Normalize pixel coords
     vec2 uv = (vec2(pixel) + 0.5) / vec2(resolution);
 
-
-
     Ray ray = compute_perspective_ray(
-        uv,
-        camera.position.xyz,
-        camera.direction.xyz, 
-        camera.up.xyz, 
-        camera.right.xyz, 
-        camera.fov,
-        camera.aspect_ratio
-    );
-
+        uv, camera.position.xyz, camera.direction.xyz, camera.up.xyz,
+        camera.right.xyz, camera.fov, camera.aspect_ratio);
 
     vec3 color = vec3(0.0);
     const uint num_internal_samples = 1; // internal samples
@@ -78,41 +64,38 @@ void main()
         payload.hit = false;
         payload.transmission = 0.0;
 
-        vec3 random = random_pcg3d(pc.rand*uvec3(gl_LaunchIDEXT.xy, payload.depth+1 ));
+        vec3 random =
+            random_pcg3d(pc.rand * uvec3(gl_LaunchIDEXT.xy, payload.depth + 1));
 
         ray.direction += random * 0.0005; // for anti-aliasing
 
-        traceRayEXT(
-            topLevelAS, 
-            gl_RayFlagsOpaqueEXT, 
-            0xFF, // mask
-            0, // sbt offset
-            0, // sbt stride
-            0, // miss index
-            ray.origin, // ray origin
-            camera.rmin, // ray min
-            ray.direction, // ray direction, 
-            camera.rmax, //ray max
-            0 // ray payload
+        traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT,
+                    0xFF,          // mask
+                    0,             // sbt offset
+                    0,             // sbt stride
+                    0,             // miss index
+                    ray.origin,    // ray origin
+                    camera.rmin,   // ray min
+                    ray.direction, // ray direction,
+                    camera.rmax,   // ray max
+                    0              // ray payload
         );
         color += payload.color.xyz;
     }
-    
 
     color = color / float(num_internal_samples);
 
     vec3 final_color = color;
     final_color = clamp(final_color, 0.0, 1.0);
-    final_color = pow(final_color, vec3(1.0/2.2)); 
+    final_color = pow(final_color, vec3(1.0 / 2.2));
 
     if (pc.sample_index == 0) {
         imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(final_color, 1.0));
 
-    }
-    else {
+    } else {
         vec3 img_color = imageLoad(image, ivec2(gl_LaunchIDEXT.xy)).rgb;
-        final_color = mix(img_color, final_color, 1.0/float(pc.sample_index+1));
+        final_color =
+            mix(img_color, final_color, 1.0 / float(pc.sample_index + 1));
         imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(final_color, 1.0));
     }
-
 }

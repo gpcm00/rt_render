@@ -17,14 +17,9 @@ struct Vertex {
     vec2 padding3;
 };
 
-layout(buffer_reference, scalar) buffer VertexBuffer {
-    Vertex vertices[];
-};
+layout(buffer_reference, scalar) buffer VertexBuffer { Vertex vertices[]; };
 
-layout(buffer_reference, scalar) buffer IndexBuffer {
-    uint indices[];
-};
-
+layout(buffer_reference, scalar) buffer IndexBuffer { uint indices[]; };
 
 struct Mesh {
     VertexBuffer vertex;
@@ -32,100 +27,85 @@ struct Mesh {
     uint material_id;
 };
 
-layout(scalar, set = 0, binding = 3) buffer Meshes {
-  Mesh meshes[];
-};
+layout(scalar, set = 0, binding = 3) buffer Meshes { Mesh meshes[]; };
 
 struct Instance {
     uint mesh_id;
 };
 
-layout(scalar, set = 0, binding = 4) buffer Instances {
-    Instance instances[];
-};
+layout(scalar, set = 0, binding = 4) buffer Instances { Instance instances[]; };
 
 layout(set = 0, binding = 5) uniform sampler2D textures[];
 
-
 struct RayPayload {
-  vec3 rayOrigin;
-  vec3 rayDirection;
-  int level;
-  vec4 color;
-  vec3 contribution;
+    vec3 rayOrigin;
+    vec3 rayDirection;
+    int level;
+    vec4 color;
+    vec3 contribution;
 };
 
 // Hash Functions for GPU Rendering, Jarzynski et al.
 // http://www.jcgt.org/published/0009/03/02/
 vec3 random_pcg3d(uvec3 v) {
-  v = v * 1664525u + 1013904223u;
-  v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
-  v ^= v >> 16u;
-  v.x += v.y*v.z; v.y += v.z*v.x; v.z += v.x*v.y;
-  return vec3(v) * (1.0/float(0xffffffffu));
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return vec3(v) * (1.0 / float(0xffffffffu));
 }
-
 
 layout(location = 0) rayPayloadInEXT RayPayload payload;
 hitAttributeEXT vec2 bary;
-void main()
-{
-  uint mesh_id = instances[gl_InstanceCustomIndexEXT].mesh_id;
-  Mesh mesh = meshes[mesh_id];
+void main() {
+    uint mesh_id = instances[gl_InstanceCustomIndexEXT].mesh_id;
+    Mesh mesh = meshes[mesh_id];
 
-  // Retrieve the indices of the triangle
-  uint tri = gl_PrimitiveID;
+    // Retrieve the indices of the triangle
+    uint tri = gl_PrimitiveID;
 
-  uint i0 = mesh.index.indices[tri*3];
-  uint i1 = mesh.index.indices[tri*3 + 1];
-  uint i2 = mesh.index.indices[tri*3 + 2];
+    uint i0 = mesh.index.indices[tri * 3];
+    uint i1 = mesh.index.indices[tri * 3 + 1];
+    uint i2 = mesh.index.indices[tri * 3 + 2];
 
-  // Retrieve the vertices of the triangle
-  Vertex v0 = mesh.vertex.vertices[i0];
-  Vertex v1 = mesh.vertex.vertices[i1];
-  Vertex v2 = mesh.vertex.vertices[i2];
+    // Retrieve the vertices of the triangle
+    Vertex v0 = mesh.vertex.vertices[i0];
+    Vertex v1 = mesh.vertex.vertices[i1];
+    Vertex v2 = mesh.vertex.vertices[i2];
 
-  vec3 weights = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
-  // vec3 weights = vec3(0.3, 0.3, 0.4);
+    vec3 weights = vec3(1.0f - bary.x - bary.y, bary.x, bary.y);
+    // vec3 weights = vec3(0.3, 0.3, 0.4);
 
-  vec3 local_normal = normalize(
-      v0.normal * weights.x +
-      v1.normal * weights.y +
-      v2.normal * weights.z
-  );
+    vec3 local_normal = normalize(
+        v0.normal * weights.x + v1.normal * weights.y + v2.normal * weights.z);
 
-  vec3 local_position = (
-      v0.position * weights.x +
-      v1.position * weights.y +
-      v2.position * weights.z
-  );
+    vec3 local_position = (v0.position * weights.x + v1.position * weights.y +
+                           v2.position * weights.z);
 
-  vec3 object_color = (
-      v0.color * weights.x +
-      v1.color * weights.y +
-      v2.color * weights.z
-  );
+    vec3 object_color =
+        (v0.color * weights.x + v1.color * weights.y + v2.color * weights.z);
 
-  vec2 uv = (
-      v0.uvmap * weights.x +
-      v1.uvmap * weights.y +
-      v2.uvmap * weights.z
-  );
+    vec2 uv =
+        (v0.uvmap * weights.x + v1.uvmap * weights.y + v2.uvmap * weights.z);
 
-  // wack lighting model for debugging
+    // wack lighting model for debugging
 
     vec3 position = vec3(gl_ObjectToWorldEXT * vec4(local_position, 1.0));
     vec3 normal = normalize(vec3(local_normal * gl_WorldToObjectEXT));
 
-  vec3 light_dir = normalize(light_pos - position);
-  float ndl = max(dot(normal, light_dir), 0.0);
-  vec3 lighting = ndl * vec3(1.0, 1.0, 1.0);
-  vec3 ambient = vec3(0.1, 0.1, 0.1);
-  uint texture_id = mesh.material_id;
-  vec3 tex_color = texture(nonuniformEXT(textures[texture_id]), uv).xyz;
-  object_color =  tex_color;
+    vec3 light_dir = normalize(light_pos - position);
+    float ndl = max(dot(normal, light_dir), 0.0);
+    vec3 lighting = ndl * vec3(1.0, 1.0, 1.0);
+    vec3 ambient = vec3(0.1, 0.1, 0.1);
+    uint texture_id = mesh.material_id;
+    vec3 tex_color = texture(nonuniformEXT(textures[texture_id]), uv).xyz;
+    object_color = tex_color;
 
-  // For debugging
+    // For debugging
     vec3 rayDirection = payload.rayDirection;
     payload.color = vec4(color, 1.0);
     payload.contribution = vec3(pow(0.6, payload.level));
