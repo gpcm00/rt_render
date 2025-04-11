@@ -1,35 +1,29 @@
 #pragma once
 #include <vector>
-template<class T>
-class HandleManager {
-private:
-	std::vector<T> reusableHandles;
-	T nextHandle;
-public:
+template <class T> class HandleManager {
+  private:
+    std::vector<T> reusableHandles;
+    T nextHandle;
 
-	HandleManager() {
-		nextHandle.value = 0;
-	}
+  public:
+    HandleManager() { nextHandle.value = 0; }
 
-	void RecycleHandle(T handle) {
-		reusableHandles.push_back(handle);
-	}
+    void RecycleHandle(T handle) { reusableHandles.push_back(handle); }
 
-	T get() {
+    T get() {
 
-		if (reusableHandles.size() > 0) {
-			nextHandle = reusableHandles.back();
-			reusableHandles.pop_back();
-		}
+        if (reusableHandles.size() > 0) {
+            nextHandle = reusableHandles.back();
+            reusableHandles.pop_back();
+        }
 
-		auto newHandle = nextHandle;
-		nextHandle.value++;
-		return newHandle;
-	}
+        auto newHandle = nextHandle;
+        nextHandle.value++;
+        return newHandle;
+    }
 
-	void reset() {
-		nextHandle.value = 0;
-		reusableHandles.clear();
-	}
-
+    void reset() {
+        nextHandle.value = 0;
+        reusableHandles.clear();
+    }
 };

@@ -1,30 +1,29 @@
 #pragma once
 // #ifndef STB_IMAGE_IMPLEMENTATION
-// #define STB_IMAGE_IMPLEMENTATION  
+// #define STB_IMAGE_IMPLEMENTATION
 // #endif
 
 // #ifndef STB_IMAGE_WRITE_IMPLEMENTATION
-// #define STB_IMAGE_WRITE_IMPLEMENTATION 
+// #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #endif
 
 #include <renderer/vulkan.hpp>
 
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <iostream>
-#include <vector>
-#include <string>
 #include <cstddef>
 #include <filesystem>
+#include <glm/glm.hpp>
+#include <iostream>
+#include <string>
 #include <tiny_gltf.h>
-
+#include <vector>
 
 class TextureMap {
     // uint8_t* map = nullptr;
     std::vector<unsigned char> map;
     int w = 0, h = 0, c = 0;
-    
-    public:
+
+  public:
     enum TextureType {
         baseColorTexture,
         normalTexture,
@@ -32,24 +31,23 @@ class TextureMap {
         occlusionTexture,
         metallicRoughnessTexture,
     };
-    
+
     TextureMap() = default;
-    TextureMap(tinygltf::Image & image, TextureType texture_type);
+    TextureMap(tinygltf::Image &image, TextureType texture_type);
     TextureMap(glm::vec4 value, TextureType texture_type);
     // TextureMap(glm::vec3 & value, TextureType texture_type);
     // TextureMap(float & value, TextureType texture_type);
 
-
-    uint8_t* data() { return map.data(); }
-    int height() { return h; } 
-    int width() { return w; } 
-    int channels() { return c; } 
+    uint8_t *data() { return map.data(); }
+    int height() { return h; }
+    int width() { return w; }
+    int channels() { return c; }
 
     void free_texture_map();
 
     TextureType type() { return texture_type; }
 
-    private:
+  private:
     TextureType texture_type;
 };
 
@@ -65,46 +63,55 @@ class Material {
 
     std::vector<TextureMap> textures;
 
-    public:
+  public:
     Material() = default;
 
-    Material(tinygltf::Material& material, tinygltf::Model & model, std::filesystem::path base_directory) : dir(base_directory) {
+    Material(tinygltf::Material &material, tinygltf::Model &model,
+             std::filesystem::path base_directory)
+        : dir(base_directory) {
         name = material.name;
 
-        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(), sizeof(base_color));
+        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(),
+               sizeof(base_color));
         memcpy(emissive, material.emissiveFactor.data(), sizeof(emissive));
 
         roughness = material.pbrMetallicRoughness.roughnessFactor;
         metallic = material.pbrMetallicRoughness.metallicFactor;
-        
-        const auto& it = material.extensions.find("KHR_materials_transmission");
+
+        const auto &it = material.extensions.find("KHR_materials_transmission");
         if (it != material.extensions.end()) {
             transmission = it->second.Get("transmissionFactor").Get<double>();
-            // glm::vec4 transmission_vec(transmission, transmission, transmission, 1.0f);
-            // textures.push_back(TextureMap(transmission, TextureMap::TextureType::transmissionTextures));
+            // glm::vec4 transmission_vec(transmission, transmission,
+            // transmission, 1.0f); textures.push_back(TextureMap(transmission,
+            // TextureMap::TextureType::transmissionTextures));
         } else {
             transmission = 0;
-            // textures.push_back(TextureMap(transmission, TextureMap::TextureType::transmissionTextures));
+            // textures.push_back(TextureMap(transmission,
+            // TextureMap::TextureType::transmissionTextures));
         }
 
-        std::cout<< name << ": \n";
+        std::cout << name << ": \n";
         if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
-            uint32_t texture_index = material.pbrMetallicRoughness.baseColorTexture.index;
+            uint32_t texture_index =
+                material.pbrMetallicRoughness.baseColorTexture.index;
             uint32_t i = model.textures[texture_index].source;
             std::string file_path = (dir / model.images[i].uri).string();
             if (model.images[i].component != 4) {
-                throw std::runtime_error("Base color texture must have 4 channels");
+                throw std::runtime_error(
+                    "Base color texture must have 4 channels");
             }
-            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::baseColorTexture));
+            textures.push_back(TextureMap(
+                model.images[i], TextureMap::TextureType::baseColorTexture));
             std::cout << "\tBase color: " << model.images[i].uri << std::endl;
-        }
-        else {
+        } else {
             // Create a 1x1 texture with the base color
-            glm::vec4 base_color_vec(base_color[0], base_color[1], base_color[2], base_color[3]);
-            textures.push_back(TextureMap(base_color_vec, TextureMap::TextureType::baseColorTexture));
+            glm::vec4 base_color_vec(base_color[0], base_color[1],
+                                     base_color[2], base_color[3]);
+            textures.push_back(TextureMap(
+                base_color_vec, TextureMap::TextureType::baseColorTexture));
         }
 
-        if (material.normalTexture.index  >= 0) {
+        if (material.normalTexture.index >= 0) {
             uint32_t texture_index = material.normalTexture.index;
             uint32_t i = model.textures[texture_index].source;
 
@@ -112,64 +119,79 @@ class Material {
             if (model.images[i].component != 4) {
                 throw std::runtime_error("Normal texture must have 4 channels");
             }
-            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::normalTexture));
-            std::cout << "\tNormal Texture: " << model.images[i].uri << std::endl;
-        }
-        else {
+            textures.push_back(TextureMap(
+                model.images[i], TextureMap::TextureType::normalTexture));
+            std::cout << "\tNormal Texture: " << model.images[i].uri
+                      << std::endl;
+        } else {
             glm::vec4 normal_map_vec(0.0f, 0.0f, 1.0f, 0.0f);
-            textures.push_back(TextureMap(normal_map_vec, TextureMap::TextureType::normalTexture));
+            textures.push_back(TextureMap(
+                normal_map_vec, TextureMap::TextureType::normalTexture));
         }
 
-        if (material.emissiveTexture.index  >= 0) {
+        if (material.emissiveTexture.index >= 0) {
             uint32_t texture_index = material.emissiveTexture.index;
             uint32_t i = model.textures[texture_index].source;
 
             std::string file_path = (dir / model.images[i].uri).string();
 
-            if (model.images[i].component == 4 || model.images[i].component == 3) {
-                textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::emissiveTexture));
+            if (model.images[i].component == 4 ||
+                model.images[i].component == 3) {
+                textures.push_back(TextureMap(
+                    model.images[i], TextureMap::TextureType::emissiveTexture));
             }
             // else if (model.images[i].component == 3) {
 
-            //     textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::emissiveTexture));
+            //     textures.push_back(TextureMap(model.images[i],
+            //     TextureMap::TextureType::emissiveTexture));
             // }
             else {
-                std::cout << "Component: " << model.images[i].component << std::endl;
-                throw std::runtime_error("Emissive texture must have 3 or 4 channels");
+                std::cout << "Component: " << model.images[i].component
+                          << std::endl;
+                throw std::runtime_error(
+                    "Emissive texture must have 3 or 4 channels");
             }
 
-            std::cout << "\tEmissive Texture: " << model.images[i].uri << std::endl;
-        }
-        else {
+            std::cout << "\tEmissive Texture: " << model.images[i].uri
+                      << std::endl;
+        } else {
             glm::vec4 emissive_vec(emissive[0], emissive[1], emissive[2], 0.0f);
-            textures.push_back(TextureMap(emissive_vec, TextureMap::TextureType::emissiveTexture));
+            textures.push_back(TextureMap(
+                emissive_vec, TextureMap::TextureType::emissiveTexture));
         }
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
-            uint32_t texture_index = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            uint32_t texture_index =
+                material.pbrMetallicRoughness.metallicRoughnessTexture.index;
             uint32_t i = model.textures[texture_index].source;
             std::string file_path = (dir / model.images[i].uri).string();
 
             // if (model.images[i].component != 2) {
-            //     std::cout << "Component: " << model.images[i].component << std::endl;
-            //     throw std::runtime_error("Metallic roughness texture must have 2 channels");
+            //     std::cout << "Component: " << model.images[i].component <<
+            //     std::endl; throw std::runtime_error("Metallic roughness
+            //     texture must have 2 channels");
             // }
 
             // if (model.images[i].component == 2) {
-            //     textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::metallicRoughnessTexture));
+            //     textures.push_back(TextureMap(model.images[i],
+            //     TextureMap::TextureType::metallicRoughnessTexture));
             // }
             // else {
-            //     std::cout << "Component: " << model.images[i].component << std::endl;
-            //     throw std::runtime_error("Metallic roughnness texture has unsupported number of channels");
+            //     std::cout << "Component: " << model.images[i].component <<
+            //     std::endl; throw std::runtime_error("Metallic roughnness
+            //     texture has unsupported number of channels");
             // }
-            textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::metallicRoughnessTexture));
-            std::cout << "\tMetallic Roughness Texture: " << model.images[i].uri << std::endl;
-        }
-        else {
+            textures.push_back(
+                TextureMap(model.images[i],
+                           TextureMap::TextureType::metallicRoughnessTexture));
+            std::cout << "\tMetallic Roughness Texture: " << model.images[i].uri
+                      << std::endl;
+        } else {
             glm::vec4 metallic_roughness_vec(metallic, roughness, 0.0f, 0.0f);
-            textures.push_back(TextureMap(metallic_roughness_vec, TextureMap::TextureType::metallicRoughnessTexture));
+            textures.push_back(
+                TextureMap(metallic_roughness_vec,
+                           TextureMap::TextureType::metallicRoughnessTexture));
         }
-
 
         // if (material.occlusionTexture.index  >= 0) {
         //     uint32_t texture_index = material.occlusionTexture.index;
@@ -178,35 +200,32 @@ class Material {
         //     std::string file_path = (dir / model.images[i].uri).string();
 
         //     if (model.images[i].component != 1) {
-        //         throw std::runtime_error("Occlusion texture must have 1 channel");
+        //         throw std::runtime_error("Occlusion texture must have 1
+        //         channel");
         //     }
 
-        //     textures.push_back(TextureMap(model.images[i], TextureMap::TextureType::occlusionTexture));
-        //     std::cout << "\tOcclusion Texture: " << model.images[i].uri << std::endl;
+        //     textures.push_back(TextureMap(model.images[i],
+        //     TextureMap::TextureType::occlusionTexture)); std::cout <<
+        //     "\tOcclusion Texture: " << model.images[i].uri << std::endl;
         // }
         // else {
         //     float occlusion = 1.0f;
-        //     textures.push_back(TextureMap(occlusion, TextureMap::TextureType::occlusionTexture));
+        //     textures.push_back(TextureMap(occlusion,
+        //     TextureMap::TextureType::occlusionTexture));
         // }
     }
 
     void cleanup() {
-        for (auto& texture : textures) {
+        for (auto &texture : textures) {
             texture.free_texture_map();
         }
     }
 
-    double get_transmission() {
-        return transmission;
-    }
+    double get_transmission() { return transmission; }
 
-    auto begin() {
-        return textures.begin();
-    }
+    auto begin() { return textures.begin(); }
 
-    auto end() {
-        return textures.end();
-    }
+    auto end() { return textures.end(); }
 };
 
 struct Vertex {
@@ -228,8 +247,10 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+    static std::array<VkVertexInputAttributeDescription, 4>
+    getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 4>
+            attributeDescriptions{};
 
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
@@ -254,24 +275,25 @@ struct Vertex {
         return attributeDescriptions;
     }
 
-    bool operator==(const Vertex& other) const {
+    bool operator==(const Vertex &other) const {
         return position == other.position;
     }
 };
 
 class Primitive {
-    public:
+  public:
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
     int32_t material_index;
     uint32_t primitive_id;
 
-    // Primitive(uint32_t id, uint32_t mat_index) : primitive_id(id), material_index(mat_index) {
+    // Primitive(uint32_t id, uint32_t mat_index) : primitive_id(id),
+    // material_index(mat_index) {
     // }
 };
 
 class Mesh {
-    public:
+  public:
     std::vector<Primitive> primitives;
     uint32_t mesh_id;
 };
@@ -285,65 +307,55 @@ class Mesh {
 // };
 
 struct Object {
-    const Mesh* mesh;
+    const Mesh *mesh;
     glm::mat4 transformation;
     glm::mat4 global_transformation;
 };
 
 class Scene {
-    private:
+  private:
     std::vector<Mesh> geometries;
     std::vector<Object> objects;
     std::vector<Material> materials;
 
     uint32_t primitive_id;
 
-
-    public:
-    Scene(const std::string& filename); 
-    ~Scene() { for (auto material : materials) material.cleanup(); }
-
-    bool empty() {
-        return geometries.empty() || objects.empty();
+  public:
+    Scene(const std::string &filename);
+    ~Scene() {
+        for (auto material : materials)
+            material.cleanup();
     }
 
-    size_t size() {
-        return objects.size();
-    }
+    bool empty() { return geometries.empty() || objects.empty(); }
+
+    size_t size() { return objects.size(); }
 
     Mesh mesh(size_t i) {
-        return (!geometries.empty() && i < geometries.size()) ? geometries[i] : Mesh();
+        return (!geometries.empty() && i < geometries.size()) ? geometries[i]
+                                                              : Mesh();
     }
 
     Object node(size_t i) {
         return (!objects.empty() && i < objects.size()) ? objects[i] : Object();
     }
 
-    auto begin() { 
-        return objects.begin(); 
-    }
+    auto begin() { return objects.begin(); }
 
-    auto end() {
-        return objects.end();
-    }
+    auto end() { return objects.end(); }
 
     Material material(size_t i) {
-        return (!materials.empty() && i < materials.size()) ? materials[i] : Material();
+        return (!materials.empty() && i < materials.size()) ? materials[i]
+                                                            : Material();
     }
 
-    size_t material_size() {
-        return materials.size();
-    }
+    size_t material_size() { return materials.size(); }
 
-    std::vector<Material> & get_materials() {
-        return materials;
-    }
+    std::vector<Material> &get_materials() { return materials; }
 
     // std::vector<Mesh>& get_geometries() {
     //     return geometries;
     // }
 
-    uint32_t num_primitives() {
-        return primitive_id;
-    }
+    uint32_t num_primitives() { return primitive_id; }
 };

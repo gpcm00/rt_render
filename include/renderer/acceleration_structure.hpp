@@ -1,15 +1,14 @@
 #pragma once
-#include <renderer/vulkan.hpp>
 #include <glm/glm.hpp>
+#include <renderer/vulkan.hpp>
 #include <unordered_map>
 
 struct StagingBuffer {
-    void* data;
-    
+    void *data;
+
     vk::Buffer buffer;
     vk::DeviceMemory memory;
 };
-
 
 struct UnifromBuffer {
     Camera matrices;
@@ -26,7 +25,7 @@ struct MeshBuffer {
 
     vk::Buffer index_buffer;
     VmaAllocation index_allocation;
-    
+
     uint32_t num_vertices;
     uint32_t num_indices;
     // uint32_t index_buffer_size;
@@ -38,15 +37,16 @@ struct MeshBuffer {
 // };
 
 class InstanceBuffer {
-    public:
-    MeshBuffer* mesh_buffer;
+  public:
+    MeshBuffer *mesh_buffer;
     glm::mat4 transformation;
     uint32_t instance_id;
 
-    InstanceBuffer(MeshBuffer* mesh_buffer, glm::mat4 & transformation, uint32_t instance_id): 
-        mesh_buffer(mesh_buffer), transformation(transformation), instance_id(instance_id) { }
+    InstanceBuffer(MeshBuffer *mesh_buffer, glm::mat4 &transformation,
+                   uint32_t instance_id)
+        : mesh_buffer(mesh_buffer), transformation(transformation),
+          instance_id(instance_id) {}
 };
-
 
 struct AccelerationBuffer {
     vk::AccelerationStructureKHR as;
@@ -83,14 +83,15 @@ struct InstanceData {
 };
 
 class TopLevelAccelerationStructure {
-    private:
+  private:
     // Need these for freeing resources
-    vk::Device & device;
-    VmaAllocator & allocator;
-    vk::detail::DispatchLoaderDynamic & dl;
+    vk::Device &device;
+    VmaAllocator &allocator;
+    vk::detail::DispatchLoaderDynamic &dl;
     int queue_family_index;
-    vk::CommandPool & command_pool;
-    public:
+    vk::CommandPool &command_pool;
+
+  public:
     // Populate these externally
     vk::AccelerationStructureKHR structure;
     vk::Buffer buffer;
@@ -100,9 +101,9 @@ class TopLevelAccelerationStructure {
     // std::vector<vk::AccelerationStructureInstanceKHR> instances;
     std::vector<InstanceBuffer> instance_buffers;
 
-    std::unordered_map<const Primitive*, MeshBuffer> meshes;
+    std::unordered_map<const Primitive *, MeshBuffer> meshes;
 
-    std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
+    std::unordered_map<const MeshBuffer *, AccelerationBuffer> blas;
 
     // This is a lookup table for vertex and index buffers
     std::vector<MeshData> mesh_data;
@@ -124,39 +125,41 @@ class TopLevelAccelerationStructure {
     vk::Buffer tlas_instance_buffer;
     VmaAllocation tlas_instance_allocation;
 
-    TopLevelAccelerationStructure(vk::Device & device, 
-        VmaAllocator & allocator,
-        vk::detail::DispatchLoaderDynamic & dl,
-        vk::CommandPool & command_pool,
-        int queue_family_index): 
-         device(device), allocator(allocator), dl(dl), 
-         command_pool(command_pool), 
-         queue_family_index(queue_family_index) { 
-    }
+    TopLevelAccelerationStructure(vk::Device &device, VmaAllocator &allocator,
+                                  vk::detail::DispatchLoaderDynamic &dl,
+                                  vk::CommandPool &command_pool,
+                                  int queue_family_index)
+        : device(device), allocator(allocator), dl(dl),
+          command_pool(command_pool), queue_family_index(queue_family_index) {}
 
     ~TopLevelAccelerationStructure() {
 
         // This assumes everything went well and is initialized
         device.destroyAccelerationStructureKHR(structure, nullptr, dl);
 
-        for (auto& mesh : meshes) {
+        for (auto &mesh : meshes) {
             // Destroy the BLAS
             auto it = blas.find(&mesh.second);
             if (it != blas.end()) {
-                device.destroyAccelerationStructureKHR(it->second.as, nullptr, dl);
-                vmaDestroyBuffer(allocator, it->second.buffer, it->second.allocation);
+                device.destroyAccelerationStructureKHR(it->second.as, nullptr,
+                                                       dl);
+                vmaDestroyBuffer(allocator, it->second.buffer,
+                                 it->second.allocation);
             }
             // Destroy the mesh buffers
-            vmaDestroyBuffer(allocator, mesh.second.vertex_buffer, mesh.second.vertex_allocation);
-            vmaDestroyBuffer(allocator, mesh.second.index_buffer, mesh.second.index_allocation);
+            vmaDestroyBuffer(allocator, mesh.second.vertex_buffer,
+                             mesh.second.vertex_allocation);
+            vmaDestroyBuffer(allocator, mesh.second.index_buffer,
+                             mesh.second.index_allocation);
         }
 
-        vmaDestroyBuffer(allocator, tlas_instance_buffer, tlas_instance_allocation);
+        vmaDestroyBuffer(allocator, tlas_instance_buffer,
+                         tlas_instance_allocation);
         vmaDestroyBuffer(allocator, buffer, allocation);
         vmaDestroyBuffer(allocator, mesh_data_buffer, mesh_data_allocation);
-        vmaDestroyBuffer(allocator, instance_data_buffer, instance_data_allocation);
-        vmaDestroyBuffer(allocator, material_data_buffer, material_data_allocation);
-        
+        vmaDestroyBuffer(allocator, instance_data_buffer,
+                         instance_data_allocation);
+        vmaDestroyBuffer(allocator, material_data_buffer,
+                         material_data_allocation);
     }
-    
 };

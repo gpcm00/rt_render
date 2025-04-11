@@ -1,31 +1,30 @@
 #pragma once
 // #ifndef STB_IMAGE_IMPLEMENTATION
-// #define STB_IMAGE_IMPLEMENTATION  
+// #define STB_IMAGE_IMPLEMENTATION
 // #endif
 
 // #ifndef STB_IMAGE_WRITE_IMPLEMENTATION
-// #define STB_IMAGE_WRITE_IMPLEMENTATION 
+// #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #endif
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION  
+#define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #include <stb_image.h>
-#include <vector>
-#include <string>
 #include <cstddef>
 #include <filesystem>
-
+#include <string>
+#include <vector>
 
 class TextureMap {
 
-    uint8_t* map = nullptr;
+    uint8_t *map = nullptr;
     int w = 0, h = 0, c = 0;
-    
-    public:
+
+  public:
     enum TextureType {
         baseColorTexture,
         normalTexture,
@@ -33,22 +32,21 @@ class TextureMap {
         occlusionTexture,
         metallicRoughness,
     };
-    
+
     TextureMap() = default;
-    TextureMap(std::string file_path, TextureType texture_type) : type(texture_type) {
+    TextureMap(std::string file_path, TextureType texture_type)
+        : type(texture_type) {
         map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
     }
 
-    uint8_t* data() { return map; }
-    int height() { return h; } 
-    int width() { return w; } 
-    int channels() { return c; } 
+    uint8_t *data() { return map; }
+    int height() { return h; }
+    int width() { return w; }
+    int channels() { return c; }
 
-    void free_texture_map() {
-        stbi_image_free(map);
-    }
+    void free_texture_map() { stbi_image_free(map); }
 
-    private:
+  private:
     TextureType type;
 };
 
@@ -64,66 +62,76 @@ class Material {
 
     std::vector<TextureMap> textures;
 
-    public:
+  public:
     Material() = default;
 
-    Material(tinygltf::Material& material, tinygltf::Image* images, std::filesystem::path base_directory) : dir(base_directory) {
+    Material(tinygltf::Material &material, tinygltf::Image *images,
+             std::filesystem::path base_directory)
+        : dir(base_directory) {
         name = material.name;
 
-        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(), 4*sizeof(double));
-        memcpy(emissive, material.emissiveFactor.data(), 3*sizeof(double));
+        memcpy(base_color, material.pbrMetallicRoughness.baseColorFactor.data(),
+               4 * sizeof(double));
+        memcpy(emissive, material.emissiveFactor.data(), 3 * sizeof(double));
 
         roughness = material.pbrMetallicRoughness.roughnessFactor;
         metallic = material.pbrMetallicRoughness.metallicFactor;
-        
-        const auto& it = material.extensions.find("KHR_materials_transmission");
+
+        const auto &it = material.extensions.find("KHR_materials_transmission");
         if (it != material.extensions.end()) {
             transmission = it->second.Get("transmissionFactor").Get<double>();
         } else {
             transmission = 0;
         }
 
-        std::cout<< name << ": \n";
+        std::cout << name << ": \n";
         if (material.pbrMetallicRoughness.baseColorTexture.index >= 0) {
             uint32_t i = material.pbrMetallicRoughness.baseColorTexture.index;
             std::string file_path = (dir / images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::baseColorTexture));
+            textures.push_back(TextureMap(
+                file_path, TextureMap::TextureType::baseColorTexture));
             std::cout << "\tBase color: " << images[i].uri << std::endl;
         } else {
             std::cout << "\tNo base color\n";
         }
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
-            uint32_t i = material.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            uint32_t i =
+                material.pbrMetallicRoughness.metallicRoughnessTexture.index;
             std::string file_path = (dir / images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::metallicRoughness));
-            std::cout << "\tMetallic Roughness Texture: " << images[i].uri << std::endl;
+            textures.push_back(TextureMap(
+                file_path, TextureMap::TextureType::metallicRoughness));
+            std::cout << "\tMetallic Roughness Texture: " << images[i].uri
+                      << std::endl;
         } else {
             std::cout << "\tNo Metallic Roughness Texture\n";
         }
 
-        if (material.normalTexture.index  >= 0) {
+        if (material.normalTexture.index >= 0) {
             uint32_t i = material.normalTexture.index;
             std::string file_path = (dir / images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::normalTexture));
+            textures.push_back(
+                TextureMap(file_path, TextureMap::TextureType::normalTexture));
             std::cout << "\tNormal Texture: " << images[i].uri << std::endl;
         } else {
             std::cout << "\tNo Normal Texture\n";
         }
 
-        if (material.emissiveTexture.index  >= 0) {
+        if (material.emissiveTexture.index >= 0) {
             uint32_t i = material.emissiveTexture.index;
             std::string file_path = (dir / images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::emissiveTexture));
+            textures.push_back(TextureMap(
+                file_path, TextureMap::TextureType::emissiveTexture));
             std::cout << "\tEmissive Texture: " << images[i].uri << std::endl;
         } else {
             std::cout << "\tNo Emissive Texture\n";
         }
 
-        if (material.occlusionTexture.index  >= 0) {
+        if (material.occlusionTexture.index >= 0) {
             uint32_t i = material.occlusionTexture.index;
             std::string file_path = (dir / images[i].uri).string();
-            textures.push_back(TextureMap(file_path, TextureMap::TextureType::occlusionTexture));
+            textures.push_back(TextureMap(
+                file_path, TextureMap::TextureType::occlusionTexture));
             std::cout << "\tOcclusion Texture: " << images[i].uri << std::endl;
         } else {
             std::cout << "\tNo Occlusion Texture\n";
@@ -131,18 +139,14 @@ class Material {
     }
 
     void cleanup() {
-        for (auto& texture : textures) {
+        for (auto &texture : textures) {
             texture.free_texture_map();
         }
     }
 
-    auto begin() {
-        return textures.begin();
-    }
+    auto begin() { return textures.begin(); }
 
-    auto end() {
-        return textures.end();
-    }
+    auto end() { return textures.end(); }
 };
 
 struct Vertex {
@@ -160,8 +164,10 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+    static std::array<VkVertexInputAttributeDescription, 4>
+    getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 4>
+            attributeDescriptions{};
 
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
@@ -186,7 +192,7 @@ struct Vertex {
         return attributeDescriptions;
     }
 
-    bool operator==(const Vertex& other) const {
+    bool operator==(const Vertex &other) const {
         return position == other.position;
     }
 };
@@ -199,31 +205,31 @@ struct Mesh {
 };
 
 struct Object {
-    const Mesh* mesh;
+    const Mesh *mesh;
     glm::mat4 transformation;
 };
 
 class Scene {
-    private:
+  private:
     std::vector<Mesh> geometries;
     std::vector<Object> objects;
     std::vector<Material> materials;
 
-    public:
+  public:
     Scene() = default;
-    Scene(const std::string& filename); 
-    ~Scene() { for (auto material : materials) material.cleanup(); }
-
-    bool empty() {
-        return geometries.empty() || objects.empty();
+    Scene(const std::string &filename);
+    ~Scene() {
+        for (auto material : materials)
+            material.cleanup();
     }
 
-    size_t size() {
-        return objects.size();
-    }
+    bool empty() { return geometries.empty() || objects.empty(); }
+
+    size_t size() { return objects.size(); }
 
     Mesh mesh(size_t i) {
-        return (!geometries.empty() && i < geometries.size()) ? geometries[i] : Mesh();
+        return (!geometries.empty() && i < geometries.size()) ? geometries[i]
+                                                              : Mesh();
     }
 
     Object node(size_t i) {
@@ -231,14 +237,11 @@ class Scene {
     }
 
     Material material(size_t i) {
-        return (!materials.empty() && i < materials.size()) ? materials[i] : Material();
+        return (!materials.empty() && i < materials.size()) ? materials[i]
+                                                            : Material();
     }
 
-    auto begin() { 
-        return objects.begin(); 
-    }
+    auto begin() { return objects.begin(); }
 
-    auto end() {
-        return objects.end();
-    }
+    auto end() { return objects.end(); }
 };

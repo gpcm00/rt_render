@@ -1,11 +1,12 @@
 #pragma once
-#include <iostream>
-#include <renderer/vulkan.hpp>
-#include <vector>
+#include <algorithm>
 #include <cassert>
 #include <glm/glm.hpp>
-#include <algorithm>
+#include <iostream>
 #include <renderer/push_constants.hpp>
+#include <renderer/vulkan.hpp>
+#include <vector>
+
 
 struct RayConstants {
     glm::vec4 color;
@@ -21,7 +22,7 @@ struct PipelineModules {
 };
 
 class Pipeline {
-    vk::Device& device;
+    vk::Device &device;
     vk::detail::DispatchLoaderDynamic dl;
 
     size_t nstage;
@@ -40,39 +41,36 @@ class Pipeline {
     vk::ShaderModule load_module(std::string file_name);
     void count_shader_module(vk::ShaderStageFlagBits stage_flag);
 
-    public:
+  public:
     Pipeline() = default;
 
-    Pipeline(vk::Device& device, vk::detail::DispatchLoaderDynamic & dl) 
-    : device(device), dl(dl) {
+    Pipeline(vk::Device &device, vk::detail::DispatchLoaderDynamic &dl)
+        : device(device), dl(dl) {
         miss_count = 0;
         chit_count = 0;
         intr_count = 0;
     };
 
     ~Pipeline() {
-        for (auto& set : sets) {
+        for (auto &set : sets) {
             device.destroyDescriptorSetLayout(set);
         }
 
         device.destroyPipeline(rt_pipeline);
         device.destroyPipelineLayout(layout);
     }
-    
+
     void create_rt_pipeline(uint32_t ray_depth);
     void push_module(std::string file_name, vk::ShaderStageFlagBits stage_flag);
-    void add_binding(vk::DescriptorType type, vk::ShaderStageFlags flags = vk::ShaderStageFlagBits::eRaygenKHR, uint32_t count = 1);
+    void add_binding(
+        vk::DescriptorType type,
+        vk::ShaderStageFlags flags = vk::ShaderStageFlagBits::eRaygenKHR,
+        uint32_t count = 1);
     void create_set();
 
-    uint32_t shader_count() {
-        return nstage;
-    }
+    uint32_t shader_count() { return nstage; }
 
-    vk::Pipeline & get_pipeline() {
-        return rt_pipeline;
-    }
+    vk::Pipeline &get_pipeline() { return rt_pipeline; }
 
-    vk::DescriptorSetLayout* get_set() {
-        return sets.data();
-    }
+    vk::DescriptorSetLayout *get_set() { return sets.data(); }
 };
