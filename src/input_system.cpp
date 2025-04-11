@@ -95,7 +95,6 @@ InputSystem::InputSystem(WindowSystem *window_system,
     create_key_action_binding("Forward", input::Key::S, true);
     create_key_action_binding("Right", input::Key::D);
     create_key_action_binding("Right", input::Key::A, true);
-    // ReloadControls();
 }
 
 InputSystem::~InputSystem() { keyboard_interface.reset(); }
@@ -121,7 +120,6 @@ input::MousePosition InputSystem::get_mouse_position() {
 
 bool InputSystem::update() {
     // put all actions to rest
-    // resetActions();
     keyboard_interface->pre_update();
     mouse_interface->pre_update();
 

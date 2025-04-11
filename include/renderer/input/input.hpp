@@ -2,8 +2,6 @@
 #include <renderer/types/handle.hpp>
 #include <string>
 
-// #include <renderer/input/keys.hpp>
-// #include <renderer/input/mouse.hpp>
 namespace input {
 
 /*

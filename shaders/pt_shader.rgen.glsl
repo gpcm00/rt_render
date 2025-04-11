@@ -68,17 +68,10 @@ void main()
     );
 
 
-// struct RayPayload {
-//   vec3 emmittedLight;
-//   vec3 rayOrigin;
-//   vec3 rayDirection;
-//   int level;
-//   vec4 color;
-// };
+
     payload.rayOrigin = ray.origin;
     payload.rayDirection = ray.direction;
     payload.level = 0;
-    // payload.color = vec3(0.0);
     vec4 pixelColor = vec3(0.0);
 
     const int maxLevel = 5;

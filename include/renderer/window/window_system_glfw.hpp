@@ -14,7 +14,6 @@ class WindowUserData {
   public:
     WindowUserData() {
         renderer = nullptr;
-        // input_system = nullptr;
         window_system = nullptr;
         keyboard_interface = nullptr;
         mouse_interface = nullptr;
@@ -22,7 +21,6 @@ class WindowUserData {
 
     WindowHandle handle;
     Renderer *renderer;
-    // InputSystem* input_system;
     WindowSystem *window_system;
     KeyboardInterface *keyboard_interface;
     MouseInterface *mouse_interface;

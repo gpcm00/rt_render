@@ -75,9 +75,7 @@ layout(set = 0, binding = 7) uniform sampler2D normal_tex[];
 layout(set = 0, binding = 8) uniform sampler2D metalness_roughness_tex[];
 layout(set = 0, binding = 9) uniform sampler2D emissive_tex[];
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-// layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
-// layout(location = 0) rayPayloadInEXT vec3 hitValue;
 layout(location = 0) rayPayloadInEXT RayPayload payload;
 
 layout( push_constant ) uniform constants
@@ -131,12 +129,6 @@ void main()
     vec3 bitangent = normalize(cross(normal, tangent)); // missing tangent.w
     mat3 normal_matrix = mat3(tangent, bitangent, normal);
 
-    // vec3 light_pos = vec3(50, 50, 0); // test light position
-    // vec3 light_dir = normalize(light_pos - position);
-    // vec3 light_color = 250.0*vec3(1.0, 1.0, 1.0);
-    // float ndl = max(dot(normal, light_dir), 0.0);
-    // vec3 lighting = ndl * light_color;
-    //   vec3 ambient = vec3(0.1, 0.1, 0.1);
     uint texture_id = mesh.material_id;
     vec3 base_color = texture(nonuniformEXT(base_color_tex[texture_id]), uv).xyz;
     base_color = decode_sRGB(base_color);
@@ -152,23 +144,12 @@ void main()
 
     vec3 emissive = texture(nonuniformEXT(emissive_tex[texture_id]), uv).xyz;
     emissive = decode_sRGB(emissive);
-    
-    // Debugging
-    // object_color = normal_map;
-    // object_color =  vec3(0.0, metalness_roughness);
-    // object_color = emissive;
 
     object_color = base_color;
 
     float reflectance = 0.5f;
     vec3 f0 = 0.16 * reflectance * reflectance * (1.0 - metalness) + base_color * metalness;
-    // vec3 view = normalize(camera.position.xyz - position);
     vec3 view = -normalize(gl_WorldRayDirectionEXT);  // towards the camera
-    // float light_distance = length(light_pos - position);
-    // float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
-
-    // vec3 color = BRDF_Filament(normal, light_dir, view, roughness, metalness, f0, base_color, light_attenuation*light_color);
-    // color += emissive;
 
     // let's also trace a ray
     vec3 indirect_light = vec3(0.0);
@@ -185,7 +166,6 @@ void main()
     float phi = 2*PI * e1;
     vec2 xi = vec2(phi, theta);
 
-    // vec3 rayDirection = importanceSamplingGGXD(normal, payload.rayDirection, light_dir, color, roughness, random, contribution);
     next_ray_dir = importanceSampleGGX(normal, view, roughness, xi, f0, contribution);
     }
     vec3 normalized_contribution = normalize(contribution);
@@ -203,7 +183,6 @@ void main()
     if (depth < max_depth) {
         payload.depth += 1;
 
-        // if (transmission > 0.0 && (random.x > 0.01)) {
         if (transmission > random.x) {
             // the code below for transmission doesn't really work
 
@@ -219,8 +198,6 @@ void main()
                 n = -normal;
             }
             vec3 ray_origin = position;
-            // vec3 ray_origin = position;
-            // next_ray_dir = -normal;
             Ray ray = Ray(ray_origin, next_ray_dir);
 
             traceRayEXT(
@@ -243,17 +220,8 @@ void main()
             if (payload.hit) {
                 atten = 1.0 / (1.0 + dist * dist);
             }
-            // vec3 trans_dir = next_ray_dir;
-            // We need a proper BTDF?
-
-        //    vec3 h = normalize(view + normal);
-        //     // float LoH = clamp(dot(l, h), 0.0, 1.0);
-        //     float u = clamp(dot(-view, normal), 0.0, 1.0);
-        //     vec3 f = F_Schlick(u, f0);
 
             color += atten*transmission_color;
-            // color += (transmission)*transmission_color;
-            // color += (transmission)*BRDF_Filament(normal, trans_dir, view, roughness, metalness, f0, base_color, atten*transmission_color);
         }
         else {
 
@@ -272,29 +240,16 @@ void main()
                 camera.rmax, //ray max
                 0 // ray payload
             );
-            // payload.depth -= 1;
             indirect_light = payload.color.xyz;
             indirect_dist = payload.t;
             
-                    // vec3 indirect_dir = -normalize(reflect(view, normal));
             vec3 indirect_dir = next_ray_dir;
-            // indirect_light = vec3(1.0, 1.0, 1.0);
-            // float indirect_length = length(indirect_light);
             float indirect_attenuation = 1.0;
             if (payload.hit) {
                 indirect_attenuation = 1.0 / (1.0 + indirect_dist * indirect_dist);
             }
 
-            // vec3 h = normalize(view + normal);
-            // // float LoH = clamp(dot(l, h), 0.0, 1.0);
-            // float u = clamp(dot(-view, normal), 0.0, 1.0);
-            // vec3 f = F_Schlick(u, f0);
-
-            // color += (1.0-transmission)*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
             color += BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
-            // color += normalized_contribution*BRDF_Filament(normal, indirect_dir, view, roughness, metalness, f0, base_color, indirect_attenuation*indirect_light);
-
-
         }
     }
 
@@ -337,7 +292,6 @@ void main()
                 // add transmitted lighting
                 float light_distance = payload.t;
                 float light_attenuation = 1.0 / (1.0 + light_distance * light_distance);
-                // color += light_attenuation*payload.transmission*payload.color.xyz;
                 color += BRDF_Filament(normal, to_light, view, roughness, metalness, f0, base_color, payload.transmission*light_attenuation*payload.color.xyz);
             }
 
@@ -347,9 +301,6 @@ void main()
     color += emissive*1.0;
 
     payload.color = vec4(color, 1.0);
-    // payload.color = vec4(1.0, 1.0, 1.0, 1.0);
-
-    // payload.color = vec4(color + indirect_light, 1.0);
     payload.hit = true;
     payload.t = gl_HitTEXT;
     payload.transmission = transmission;

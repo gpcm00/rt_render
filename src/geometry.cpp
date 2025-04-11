@@ -1,8 +1,5 @@
-// #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <cstdlib>
 #include <iostream>
-
-// #include <tiny_gltf.h>
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -18,7 +15,6 @@ namespace fs = std::filesystem;
 
 TextureMap::TextureMap(tinygltf::Image &image, TextureType texture_type)
     : texture_type(texture_type) {
-    // map = stbi_load(file_path.c_str(), &w, &h, &c, STBI_rgb_alpha);
     map = image.image;
     w = image.width;
     h = image.height;
@@ -62,29 +58,7 @@ TextureMap::TextureMap(glm::vec4 value, TextureType texture_type)
     }
 }
 
-// TextureMap::TextureMap(glm::vec3 & value, TextureType texture_type):
-// texture_type(texture_type) {
-//     w = 1;
-//     h = 1;
-//     c = 3;
-//     map.resize(w * h * c);
-//     map[0] = static_cast<unsigned char>(value.r * 255.0f);
-//     map[1] = static_cast<unsigned char>(value.g * 255.0f);
-//     map[2] = static_cast<unsigned char>(value.b * 255.0f);
-// }
-
-// TextureMap::TextureMap(float & value, TextureType texture_type):
-// texture_type(texture_type) {
-//     w = 1;
-//     h = 1;
-//     c = 1;
-//     map.resize(w * h * c);
-//     map[0] = static_cast<unsigned char>(value * 255.0f);
-// }
-
-void TextureMap::free_texture_map() {
-    // stbi_image_free(map);
-}
+void TextureMap::free_texture_map() {}
 
 static glm::mat4 get_node_transform(const tinygltf::Node &node) {
     glm::mat4 transform = glm::mat4(1.0f); // Identity matrix
@@ -281,22 +255,7 @@ Scene::Scene(const std::string &filename) {
     size_t mesh_i = 0;
     primitive_id = 0;
     for (const auto &mesh : model.meshes) {
-        // std::cout << "Mesh["<< mesh_i << "]: " << mesh.name << std::endl;
-        // size_t n_vertices = 0;
-        // size_t n_indices = 0;
-
-        // geometries[mesh_i].texture_index = -1;
         for (auto &primitive : mesh.primitives) {
-            // check if non-empty
-            // if (geometries[mesh_i].vertices.size() > 0) {
-            //     std::cout << "Mesh["<< mesh_i << "] already has vertices" <<
-            //     std::endl; continue;
-            // }
-            // if (geometries[mesh_i].indices.size() > 0) {
-            //     std::cout << "Mesh["<< mesh_i << "] already has indices" <<
-            //     std::endl; continue;
-            // }
-
             if (primitive.mode != TINYGLTF_MODE_TRIANGLES) {
                 std::cerr << "Unsupported primitive mode: " << primitive.mode
                           << std::endl;
@@ -341,23 +300,3 @@ Scene::Scene(const std::string &filename) {
     std::cout << "Number of objects: " << obj_i << std::endl;
     std::cout << "Number of materials: " << mat_i << std::endl;
 }
-
-// int main(int argc, char** argv) {
-//     if (argc != 2) {
-//         std::cout << "usage: " << argv[0] << " [path/to/model]\n";
-//         exit(EXIT_FAILURE);
-//     }
-
-//     std::string file_name(argv[1]);
-//     std::cout << "Loading: " << file_name << std::endl;
-
-//     Scene test_meshes(file_name);
-//     if (test_meshes.empty()) {
-//         throw std::runtime_error("Unable to load test pointer list");
-//     }
-
-//     std::cout << test_meshes.size() << std::endl;
-//     std::cout << test_meshes.empty() << std::endl;
-
-//     return 0;
-// }

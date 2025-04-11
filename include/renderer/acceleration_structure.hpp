@@ -28,13 +28,7 @@ struct MeshBuffer {
 
     uint32_t num_vertices;
     uint32_t num_indices;
-    // uint32_t index_buffer_size;
 };
-
-// struct InstanceBuffer {
-//     MeshBuffer* mesh_buffer;
-//     glm::mat4 transformation;
-// };
 
 class InstanceBuffer {
   public:
@@ -53,19 +47,8 @@ struct AccelerationBuffer {
 
     vk::Buffer buffer;
     VmaAllocation allocation;
-    // vk::DeviceMemory memory;
     vk::DeviceAddress as_addr;
 };
-
-/*
-struct TopAccelerationBuffer {
-    AccelerationBuffer as;
-
-    // needs a separated buffer for instances
-    vk::Buffer buffer;
-    vk::DeviceMemory memory;
-};
-*/
 
 // This is really PrimitiveData and should be renamed
 struct MeshData {
@@ -98,7 +81,6 @@ class TopLevelAccelerationStructure {
     VmaAllocation allocation;
     vk::DeviceAddress addr;
 
-    // std::vector<vk::AccelerationStructureInstanceKHR> instances;
     std::vector<InstanceBuffer> instance_buffers;
 
     std::unordered_map<const Primitive *, MeshBuffer> meshes;

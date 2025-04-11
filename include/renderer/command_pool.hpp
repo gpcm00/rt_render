@@ -89,8 +89,6 @@ class Command_Pool {
         info.pCommandBuffers = command_buffers.data();
 
         queue.submit(info, nullptr);
-
-        // queue.waitIdle();
     }
 
     void free_command_buffer(vk::CommandBuffer command_buffer) {

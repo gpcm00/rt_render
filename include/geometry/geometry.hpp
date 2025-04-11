@@ -1,11 +1,4 @@
 #pragma once
-// #ifndef STB_IMAGE_IMPLEMENTATION
-// #define STB_IMAGE_IMPLEMENTATION
-// #endif
-
-// #ifndef STB_IMAGE_WRITE_IMPLEMENTATION
-// #define STB_IMAGE_WRITE_IMPLEMENTATION
-// #endif
 
 #include <renderer/vulkan.hpp>
 
@@ -19,7 +12,6 @@
 #include <vector>
 
 class TextureMap {
-    // uint8_t* map = nullptr;
     std::vector<unsigned char> map;
     int w = 0, h = 0, c = 0;
 
@@ -35,8 +27,6 @@ class TextureMap {
     TextureMap() = default;
     TextureMap(tinygltf::Image &image, TextureType texture_type);
     TextureMap(glm::vec4 value, TextureType texture_type);
-    // TextureMap(glm::vec3 & value, TextureType texture_type);
-    // TextureMap(float & value, TextureType texture_type);
 
     uint8_t *data() { return map.data(); }
     int height() { return h; }
@@ -81,13 +71,8 @@ class Material {
         const auto &it = material.extensions.find("KHR_materials_transmission");
         if (it != material.extensions.end()) {
             transmission = it->second.Get("transmissionFactor").Get<double>();
-            // glm::vec4 transmission_vec(transmission, transmission,
-            // transmission, 1.0f); textures.push_back(TextureMap(transmission,
-            // TextureMap::TextureType::transmissionTextures));
         } else {
             transmission = 0;
-            // textures.push_back(TextureMap(transmission,
-            // TextureMap::TextureType::transmissionTextures));
         }
 
         std::cout << name << ": \n";
@@ -140,11 +125,6 @@ class Material {
                 textures.push_back(TextureMap(
                     model.images[i], TextureMap::TextureType::emissiveTexture));
             }
-            // else if (model.images[i].component == 3) {
-
-            //     textures.push_back(TextureMap(model.images[i],
-            //     TextureMap::TextureType::emissiveTexture));
-            // }
             else {
                 std::cout << "Component: " << model.images[i].component
                           << std::endl;
@@ -166,21 +146,6 @@ class Material {
             uint32_t i = model.textures[texture_index].source;
             std::string file_path = (dir / model.images[i].uri).string();
 
-            // if (model.images[i].component != 2) {
-            //     std::cout << "Component: " << model.images[i].component <<
-            //     std::endl; throw std::runtime_error("Metallic roughness
-            //     texture must have 2 channels");
-            // }
-
-            // if (model.images[i].component == 2) {
-            //     textures.push_back(TextureMap(model.images[i],
-            //     TextureMap::TextureType::metallicRoughnessTexture));
-            // }
-            // else {
-            //     std::cout << "Component: " << model.images[i].component <<
-            //     std::endl; throw std::runtime_error("Metallic roughnness
-            //     texture has unsupported number of channels");
-            // }
             textures.push_back(
                 TextureMap(model.images[i],
                            TextureMap::TextureType::metallicRoughnessTexture));
@@ -192,27 +157,6 @@ class Material {
                 TextureMap(metallic_roughness_vec,
                            TextureMap::TextureType::metallicRoughnessTexture));
         }
-
-        // if (material.occlusionTexture.index  >= 0) {
-        //     uint32_t texture_index = material.occlusionTexture.index;
-        //     uint32_t i = model.textures[texture_index].source;
-
-        //     std::string file_path = (dir / model.images[i].uri).string();
-
-        //     if (model.images[i].component != 1) {
-        //         throw std::runtime_error("Occlusion texture must have 1
-        //         channel");
-        //     }
-
-        //     textures.push_back(TextureMap(model.images[i],
-        //     TextureMap::TextureType::occlusionTexture)); std::cout <<
-        //     "\tOcclusion Texture: " << model.images[i].uri << std::endl;
-        // }
-        // else {
-        //     float occlusion = 1.0f;
-        //     textures.push_back(TextureMap(occlusion,
-        //     TextureMap::TextureType::occlusionTexture));
-        // }
     }
 
     void cleanup() {
@@ -286,10 +230,6 @@ class Primitive {
     std::vector<Vertex> vertices;
     int32_t material_index;
     uint32_t primitive_id;
-
-    // Primitive(uint32_t id, uint32_t mat_index) : primitive_id(id),
-    // material_index(mat_index) {
-    // }
 };
 
 class Mesh {
@@ -297,14 +237,6 @@ class Mesh {
     std::vector<Primitive> primitives;
     uint32_t mesh_id;
 };
-
-// struct Mesh {
-//     std::vector<uint32_t> indices;
-//     std::vector<Vertex> vertices;
-
-//     int texture_index;
-//     uint32_t mesh_id;
-// };
 
 struct Object {
     const Mesh *mesh;
@@ -352,10 +284,6 @@ class Scene {
     size_t material_size() { return materials.size(); }
 
     std::vector<Material> &get_materials() { return materials; }
-
-    // std::vector<Mesh>& get_geometries() {
-    //     return geometries;
-    // }
 
     uint32_t num_primitives() { return primitive_id; }
 };

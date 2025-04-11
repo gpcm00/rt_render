@@ -46,9 +46,6 @@ layout(scalar, set = 0, binding = 4) buffer Instances {
 
 layout(set = 0, binding = 5) uniform sampler2D textures[];
 
-// layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-// layout(binding = 1, set = 0, rgba8) uniform image2D image;
-
 
 struct RayPayload {
   vec3 rayOrigin;
@@ -69,17 +66,10 @@ vec3 random_pcg3d(uvec3 v) {
 }
 
 
-// layout(location = 0) rayPayloadInEXT vec3 hitValue;
 layout(location = 0) rayPayloadInEXT RayPayload payload;
-// hitAttributeEXT vec3 attribs;
 hitAttributeEXT vec2 bary;
 void main()
 {
-
-  // vec3 light_pos = vec3(-10.0, 10.0, 0.0); // test light position
-//   vec3 light_pos = vec3(-4.0, 4.0, -2.0); // test light position
-//   vec3 light_pos = vec3(40.0, 40.0, -20.0); // test light position
-  vec3 light_pos = vec3(0, 40, 0); // test light position
   uint mesh_id = instances[gl_InstanceCustomIndexEXT].mesh_id;
   Mesh mesh = meshes[mesh_id];
 
@@ -126,36 +116,19 @@ void main()
 
     vec3 position = vec3(gl_ObjectToWorldEXT * vec4(local_position, 1.0));
     vec3 normal = normalize(vec3(local_normal * gl_WorldToObjectEXT));
-    // mat3 normal_matrix = transpose(mat3(gl_WorldToObjectEXT));
-    // vec3 normal = normalize(normal_matrix * local_normal);
 
   vec3 light_dir = normalize(light_pos - position);
   float ndl = max(dot(normal, light_dir), 0.0);
   vec3 lighting = ndl * vec3(1.0, 1.0, 1.0);
   vec3 ambient = vec3(0.1, 0.1, 0.1);
-  // vec3 object_color = vec3(0.0, 1.0, 0.0);
   uint texture_id = mesh.material_id;
-  // uint texture_id = 0;
   vec3 tex_color = texture(nonuniformEXT(textures[texture_id]), uv).xyz;
   object_color =  tex_color;
-  // vec3 color = clamp(object_color*(lighting + ambient), 0.0, 1.0);
 
   // For debugging
-//   color = position.xyz;
-
-// struct RayPayload {
-//   vec3 rayOrigin;
-//   vec3 rayDirection;
-//   int level;
-//   vec4 color;
-//   vec3 contribution;
-// };
     vec3 rayDirection = payload.rayDirection;
     payload.color = vec4(color, 1.0);
     payload.contribution = vec3(pow(0.6, payload.level));
     payload.rayOrigin = position;
     payload.rayDirection = reflect(rayDirection, normal);
-
-
-//   payload = vec4(color, 1.0);
 }

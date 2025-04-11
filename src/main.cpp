@@ -10,7 +10,6 @@
 #include <renderer/renderer.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
-// #define VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 class PathTracer : public App {
   private:
@@ -59,10 +58,8 @@ class PathTracer : public App {
         // Compute initial pitch and yaw from camera direction
         pitch = glm::degrees(asin(camera_direction.z));
         yaw = glm::degrees(atan2(camera_direction.y, camera_direction.x));
-        // yaw += 180.0f;
         pitch = glm::clamp(pitch, -89.9f, 89.9f);
         yaw = glm::mod(yaw, 360.0f);
-        // std::cout << "Pitch: " << pitch << ", Yaw: " << yaw << std::endl;
 
         // Initialize camera
         auto &camera = renderer->get_camera();
@@ -86,11 +83,6 @@ class PathTracer : public App {
             input_system.get_button_state("Exit") == input::ButtonState::Held) {
             exit_function();
         }
-
-        // if (input_system.get_button_state("ToggleAveraging") ==
-        // input::ButtonState::Pressed) {
-        //     renderer->toggle_averaging();
-        // }
     }
 
     void render_update(const FrameConstants &frame_constants) override {
@@ -115,7 +107,6 @@ class PathTracer : public App {
         pitch -= delta_y * 0.1f;
         pitch = glm::clamp(pitch, -89.9f, 89.9f);
         yaw = glm::mod(yaw, 360.0f);
-        // std::cout << "Pitch: " << pitch << ", Yaw: " << yaw << std::endl;
 
         // Local variables will hold the new values
         camera_direction.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
@@ -154,13 +145,10 @@ class PathTracer : public App {
             static_cast<float>(r_width) / static_cast<float>(r_height);
         // Render
         renderer->render(frame_constants);
-        // std::cout << "Camera position: " << camera_position.x << ", " <<
-        // camera_position.y << ", " << camera_position.z << std::endl;
     }
 };
 
 int main() {
-
     PathTracer().run();
 
     return 0;

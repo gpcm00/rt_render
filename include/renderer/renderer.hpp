@@ -68,8 +68,6 @@ class Renderer {
 
     ImageStorage images;
 
-    // std::unordered_map<const MeshBuffer*, AccelerationBuffer> blas;
-    // TopAccelerationBuffer tlas;
     std::unique_ptr<TopLevelAccelerationStructure> tlas;
 
     VmaAllocator allocator;
@@ -82,9 +80,6 @@ class Renderer {
     bool averaging;
 
     void setup_vulkan() {
-        // Create Vulkan 1.3 instance  with validation layers
-        // VULKAN_HPP_DEFAULT_DISPATCHER.init();
-
         vk::ApplicationInfo app_info(
             "Vulkan Path Tracer", VK_MAKE_VERSION(1, 0, 0), nullptr,
             VK_MAKE_VERSION(1, 0, 0), VK_API_VERSION_1_3);
@@ -140,7 +135,6 @@ class Renderer {
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
             VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
             VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-            // VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME
         };
         float queue_priority = 1.0f;
         vk::DeviceQueueCreateInfo queue_create_info({}, 0, 1, &queue_priority);
@@ -182,8 +176,6 @@ class Renderer {
 
         // Chain a bunch of physical device features
 
-        // vk::PhysicalDeviceFeatures device_features = {};
-        // device_features.samplerAnisotropy = VK_TRUE;
         // Ray tracing pipelines
         vk::PhysicalDeviceRayTracingPipelineFeaturesKHR
             physical_device_ray_tracing_pipeline_features{};
@@ -218,29 +210,8 @@ class Renderer {
             {}, queue_create_infos, validation_layers, device_extensions,
             nullptr, &device_features2);
 
-        // vk::DeviceCreateInfo device_create_info(
-        //     {},
-        //     queue_create_infos.size(),
-        //     queue_create_infos.data(),
-        //     0,
-        //     nullptr,
-        //     device_extensions.size(),
-        //     device_extensions.data(),
-        //     &device_features,
-        //     &device_features2
-        //     );
-
-        // vk::DeviceCreateInfo device_create_info({},
-        // queue_create_infos.size(), queue_create_infos.data(), 0, nullptr,
-        // device_extensions.size(), device_extensions.data(), &device_features,
-        // &device_features2);
-
         device = physical_device.createDevice(device_create_info);
 
-        // pool = Command_Pool(&device, &physical_device,
-        // vk::QueueFlagBits::eGraphics); pool = Command_Pool((const
-        // vk::Device*)&device, (vk::PhysicalDevice)physical_device,
-        // vk::QueueFlagBits::eGraphics); Create general command pool
         vk::CommandPoolCreateInfo pool_info{};
         pool_info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
         pool_info.queueFamilyIndex =
@@ -312,36 +283,10 @@ class Renderer {
             "shaders/shader.rmiss.spv", "shaders/shader.rchit.spv");
     }
 
-    // void create_descriptor_sets();
-    /*
-        void create_pipeline() {
-            // pipeline = Pipeline((VkDevice*)&device);
-            pipeline = Pipeline((vk::Device*)&device, dl);
-            pipeline.add_binding(vk::DescriptorType::eAccelerationStructureKHR);
-            // pipeline.add_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-            pipeline.add_binding(vk::DescriptorType::eStorageImage);
-            pipeline.create_set();
-
-            // create_descriptor_sets();
-
-            std::string rengen_module_path = "shaders/shader.rgen.spv";
-            std::string miss_module_path = "shaders/shader.rmiss.spv";
-            std::string clhit_module_path = "shaders/shader.rchit.spv";
-
-            pipeline.push_module(rengen_module_path,
-       vk::ShaderStageFlagBits::eRaygenKHR);
-            pipeline.push_module(miss_module_path,
-       vk::ShaderStageFlagBits::eMissKHR);
-            pipeline.push_module(clhit_module_path,
-       vk::ShaderStageFlagBits::eClosestHitKHR); pipeline.create_rt_pipeline(3);
-        }
-        */
-
     void cleanup_vulkan() {
         vmaDestroyBuffer(allocator, sbt.buffer, sbt.allocation);
         pipeline.reset();
         device.destroyCommandPool(general_command_pool);
-        // pool.destroy_pool();
         vmaDestroyAllocator(allocator);
         device.destroy();
         instance.destroySurfaceKHR(surface);
@@ -362,8 +307,6 @@ class Renderer {
         return device.getBufferAddress(&info, dl);
     }
 
-    // void create_ubo();
-
     // void create_device_buffer(vk::Buffer& buffer, vk::DeviceMemory& memory,
     // const void* vertices, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
@@ -383,11 +326,6 @@ class Renderer {
         alloc_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
         alloc_info.flags =
             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-        // alloc_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-        // alloc_info.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-        // VK_MEMORY_PROPERTY_HOST_CACHED_BIT; alloc_info.flags =
-        // VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
-        // VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
         if (vmaCreateBuffer(
                 allocator, reinterpret_cast<VkBufferCreateInfo *>(&buffer_info),
@@ -436,7 +374,6 @@ class Renderer {
                                    vk::BufferUsageFlags usage) {
         auto [staging_buffer, staging_allocation] =
             create_staging_buffer_with_data(data, size, usage);
-        // std::cout << "Successfully created staging buffer" << std::endl;
 
         // Create a device-local buffer for the data
         auto [buffer, allocation] = create_device_buffer(
@@ -700,13 +637,9 @@ class Renderer {
         swapchain = std::make_unique<Swapchain>(
             physical_device, device, window_system->get(window), surface);
 
-        // create_pipeline();
         create_rt_pipeline();
         create_sbt();
-        // load_scene("glTF-Sample-Assets/Models/Lantern/glTF/Lantern.gltf");
-        // load_scene("glTF-Sample-Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf");
         load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
-        // load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
 
         frame_setup();
         set_camera_changed(true);
@@ -1137,7 +1070,6 @@ class Renderer {
         submit_info.pSignalSemaphores = &frame_data[current_frame]->sem;
         auto queue = device.getQueue(graphics_queue_family_index, 0);
         queue.submit(1, &submit_info, frame_data[current_frame]->fence);
-        // std::cout << "Submitted command buffer" << std::endl;
 
         // Prepare for present
         vk::PresentInfoKHR present_info{};

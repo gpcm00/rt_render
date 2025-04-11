@@ -18,10 +18,6 @@ class CommonFrameData {
 
   public:
     std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
-    // For the scene
-    // vk::AccelerationStructureKHR tlas;
-    // VmaAllocation tlas_allocation;
-    // vk::Buffer tlas_buffer;
 
     CommonFrameData(vk::Device &device, VmaAllocator &allocator,
                     size_t num_frames, int graphics_queue_family_index)
@@ -42,8 +38,6 @@ class CommonFrameData {
             device.destroyDescriptorSetLayout(layout);
         }
         descriptor_set_layouts.clear();
-
-        // vmaDestroyBuffer(allocator, tlas_buffer, tlas_allocation);
 
         device.destroyCommandPool(command_pool);
     }
@@ -110,22 +104,6 @@ class FrameData {
             vk::FenceCreateFlagBits::eSignaled; // so that the first wait on
                                                 // empty work doesn't fail
         fence = device.createFence(fence_info);
-
-        // create an image for the ray tracing output
-        // vk::ImageCreateInfo image_info{};
-        // image_info.imageType = vk::ImageType::e2D;
-        // image_info.extent.width = width;
-        // image_info.extent.height = height;
-        // image_info.extent.depth = 1;
-        // image_info.mipLevels = 1;
-        // image_info.arrayLayers = 1;
-        // image_info.format = vk::Format::eR8G8B8A8Unorm;
-        // image_info.tiling = vk::ImageTiling::eOptimal;
-        // image_info.initialLayout = vk::ImageLayout::eUndefined;
-        // image_info.usage = vk::ImageUsageFlagBits::eStorage |
-        // vk::ImageUsageFlagBits::eTransferSrc; image_info.samples =
-        // vk::SampleCountFlagBits::e1; image_info.sharingMode =
-        // vk::SharingMode::eExclusive;
 
         VkImageCreateInfo image_info{};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -252,27 +230,4 @@ class FrameData {
         device.destroyFence(fence);
         device.freeCommandBuffers(common_data->command_pool, command_buffer);
     }
-
-    // void update_camera_buffer(const RTCamera& camera) {
-    //     void* mapped_data = nullptr;
-
-    //     // Map the staging buffer memory
-    //     vmaMapMemory(common_data->allocator, staging_buffer_allocation,
-    //     &mapped_data); std::memcpy(mapped_data, &camera, sizeof(RTCamera));
-    //     vmaUnmapMemory(common_data->allocator, staging_buffer_allocation);
-
-    //     // Record command to copy from staging buffer to camera buffer
-    //     vk::CommandBufferBeginInfo begin_info{};
-    //     command_buffer.begin(begin_info);
-
-    //     vk::BufferCopy copy_region{};
-    //     copy_region.srcOffset = 0;
-    //     copy_region.dstOffset = 0;
-    //     copy_region.size = sizeof(RTCamera);
-
-    //     command_buffer.copyBuffer(staging_buffer, camera_buffer,
-    //     copy_region);
-
-    //     command_buffer.end();
-    // }
 };
