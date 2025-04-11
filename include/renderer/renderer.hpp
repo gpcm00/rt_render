@@ -639,7 +639,7 @@ class Renderer {
 
         create_rt_pipeline();
         create_sbt();
-        load_scene("glTF-Sample-Assets/Models/Duck/glTF/Duck.gltf");
+        load_scene("glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf");
 
         frame_setup();
         set_camera_changed(true);
