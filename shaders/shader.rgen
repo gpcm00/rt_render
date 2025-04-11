@@ -36,6 +36,7 @@ pc;
 Ray compute_perspective_ray(vec2 uv, vec3 position, vec3 direction, vec3 up,
                             vec3 right, float fov, float aspect_ratio) {
     float scale = tan(fov * 0.5);
+    up = cross(right, direction);
     vec3 ray_direction = normalize((uv.x - 0.5) * aspect_ratio * scale * right -
                                    (uv.y - 0.5) * scale * up + direction);
 
