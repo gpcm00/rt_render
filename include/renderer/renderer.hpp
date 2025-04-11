@@ -200,11 +200,11 @@ class Renderer {
         indexing_features.pNext = &acc_features;
 
         // nv ray tracing validation
-        vk::PhysicalDeviceRayTracingValidationFeaturesNV validation_features;
-        validation_features.pNext = &indexing_features;
+        // vk::PhysicalDeviceRayTracingValidationFeaturesNV validation_features;
+        // validation_features.pNext = &indexing_features;
 
         vk::PhysicalDeviceFeatures2 device_features2;
-        device_features2.pNext = &validation_features;
+        device_features2.pNext = &indexing_features;
 
         vk::DeviceCreateInfo device_create_info(
             {}, queue_create_infos, validation_layers, device_extensions,
