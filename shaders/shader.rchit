@@ -278,7 +278,7 @@ void main() {
             color +=
                 BRDF_Filament(normal, to_light, view, roughness, metalness, f0,
                               base_color, light_attenuation * light_color);
-        } else {
+        } else if (payload.transmission > 0.0) {
             // add transmitted lighting
             float light_distance = payload.t;
             float light_attenuation =
