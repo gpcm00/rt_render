@@ -1,5 +1,7 @@
 # rt_render
 
+![A Beautiful Game](docs/ABeautifulGame.png)
+
 A real-time path tracing renderer in Vulkan.
 
 Originally an SFU CMPT 469/722 course project during the Spring 2025 term.
@@ -46,7 +48,7 @@ Run the application from the same directory as the glTF sample assets. It uses t
 
 `./renderer.exe "glTF-Sample-Assets/Models/ABeautifulGame/glTF/ABeautifulGame.gltf"`
 
-Due to time constraints, not all sample assets are supported. 
+Due to time constraints, not all sample assets are supported.
 
 ## Controls
 
@@ -62,3 +64,8 @@ The code organization is as follows:
 - Our implementation is split across the `src` folder which contains our `.cpp` files while the header files are in the `include` folder. Our renderer code is primarily in [`include/renderer/renderer.hpp`](include/renderer/renderer.hpp) and [`src/renderer.cpp`](src/renderer.cpp).
 - The `external` directory contains third-party dependencies in the form of git submodules.
 
+## Gallery
+
+![Flight Helmet](docs/FlightHelmet.png)
+![Toy Car](docs/ToyCar.png)
+![A Beautiful Game](docs/ABeautifulGame2.png)
